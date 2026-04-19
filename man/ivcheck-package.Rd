@@ -6,7 +6,7 @@
 \alias{ivcheck-package}
 \title{ivcheck: Tests for Instrumental Variable Validity}
 \description{
-Implements tests for the identifying assumptions of instrumental variable models, the local exclusion restriction and monotonicity conditions required for local average treatment effect identification. Covers Kitagawa (2015) \doi{10.3982/ECTA11974}, Mourifie and Wan (2017) \doi{10.1162/REST_a_00628}, and Frandsen, Lefgren, and Leslie (2023) \doi{10.1257/aer.20201860}. Includes a one-shot wrapper that runs all applicable tests on a fitted instrumental variable model. Dispatches on 'fixest' and 'ivreg' model objects.
+Implements tests for the identifying assumptions of instrumental variable models, the local exclusion restriction and monotonicity conditions required for local average treatment effect identification. Covers Kitagawa (2015) \doi{10.3982/ECTA11974}, Mourifie and Wan (2017) \doi{10.1162/REST_a_00622}, and Frandsen, Lefgren, and Leslie (2023) \doi{10.1257/aer.20201860}. Includes a one-shot wrapper that runs all applicable tests on a fitted instrumental variable model. Dispatches on 'fixest' and 'ivreg' model objects.
 }
 \seealso{
 Useful links:

@@ -36,11 +36,15 @@
 #' @references
 #' Mourifie, I. and Wan, Y. (2017). Testing Local Average Treatment
 #' Effect Assumptions. *Review of Economics and Statistics*, 99(2),
-#' 305-313. \doi{10.1162/REST_a_00628}
+#' 305-313. \doi{10.1162/REST_a_00622}
 #'
 #' Chernozhukov, V., Lee, S., and Rosen, A. M. (2013). Intersection
 #' Bounds: Estimation and Inference. *Econometrica*, 81(2), 667-737.
 #' \doi{10.3982/ECTA8718}
+#'
+#' Imbens, G. W. and Angrist, J. D. (1994). Identification and Estimation
+#' of Local Average Treatment Effects. *Econometrica*, 62(2), 467-475.
+#' \doi{10.2307/2951620}
 #'
 #' @examples
 #' \donttest{

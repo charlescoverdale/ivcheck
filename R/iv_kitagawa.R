@@ -51,6 +51,10 @@
 #' Kitagawa, T. (2015). A Test for Instrument Validity. *Econometrica*,
 #' 83(5), 2043-2063. \doi{10.3982/ECTA11974}
 #'
+#' Imbens, G. W. and Angrist, J. D. (1994). Identification and Estimation
+#' of Local Average Treatment Effects. *Econometrica*, 62(2), 467-475.
+#' \doi{10.2307/2951620}
+#'
 #' @examples
 #' \donttest{
 #' # Valid IV: compliers exist, no violations

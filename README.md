@@ -176,15 +176,35 @@ Card's own reading of the exclusion restriction is that proximity to a four-year
 
 Each function accepts either raw `(y, d, z)` vectors or a fitted `fixest::feols` / `ivreg::ivreg` IV model through S3 dispatch. Bundled demonstration data: `card1995` (Card 1995 extract) and `judges_demo` (simulated judge-IV panel with a known data-generating process).
 
-## Methodology notes
+## Limitations
 
-Users should be aware of a few caveats. Each function's help file discusses these in more depth.
+Read this section before using `ivcheck` in published work.
+
+### Scope boundaries (what this package does not do)
+
+- **Continuous instruments.** None of the v0.1.0 tests applies to a continuous `Z`. Discretise `Z` to a handful of bins (quartiles, quintiles) and run `iv_kitagawa` or `iv_mw` on the discretised instrument. Expect some loss of power. A continuous-`Z` extension (Kitagawa-Sun 2021, arXiv:2112.08092) is planned for v0.2.0.
+- **Multivalued treatment.** All three tests assume binary `D`. For multivalued or ordered treatments, use Sun (2023, *JoE*) once `iv_sun()` lands in v0.2.0.
+- **Fuzzy regression discontinuity.** The sharpness of these tests degrades in fuzzy RD. Arai, Hsu, Kitagawa, Mourifie, and Wan (2022, *QE*) is the right test for that design; `iv_frd()` is planned for v0.2.0.
+- **Weighted inference.** The `weights` argument is reserved but not yet implemented; survey weights are ignored in v0.1.0. Users with complex survey designs should wait for v0.2.0 or discretise manually into strata.
+
+### Simplifications relative to the published tests
+
+`iv_kitagawa()` implements the unweighted Kolmogorov-Smirnov form of Kitagawa (2015), not the variance-weighted form in the paper's section 4. The two are asymptotically equivalent at the null boundary; the weighted version has slightly better finite-sample power when cell sizes are unequal. A weighted option is planned for v0.1.1.
+
+`iv_mw()` without covariates is exact. With covariates, v0.1.0 uses a bin-stratified version (quantile bins of `x`, Kitagawa statistic within each bin, joint multiplier bootstrap) that preserves the spirit of Mourifie and Wan's (2017) conditional-inequality formulation but does not implement the full Chernozhukov-Lee-Rosen (2013) intersection-bounds inference. The two tests agree on rejection decisions in the settings we have checked so far; numeric agreement with the Stata `clrtest` implementation is not yet formally verified. Full CLR inference is planned for v0.2.0.
+
+`iv_testjfe()` implements a simplified version of Frandsen, Lefgren, and Leslie (2023). It tests the linearity implication of the joint null (that `E[Y | J = j]` is a linear function of `E[D | J = j]`) using a weighted-LS fit and chi-squared asymptotic inference. This is a necessary condition for the full restricted-LS test of FLL (2023), not the full sufficient test. Empirical properties: the null distribution matches chi-squared with `K - 2` degrees of freedom (verified by Monte Carlo, size 6.5% vs nominal 5% at `K = 20`, `N = 3000`). Users needing the published test exactly should consult the Stata `testjfe` module (Frandsen, BYU, 2020) until `ivcheck` v0.2.0 ports it fully.
+
+### Interpretation caveats
 
 - **Failure to reject is not proof of validity.** All three tests have power against specific violations (monotonicity failures or exclusion violations that show up in the observable conditional distributions) but are silent on violations that cancel out across subgroups. Treat a non-rejection as "no detectable violation at level alpha", not "my IV is clean."
 - **Kitagawa vs Mourifie-Wan when covariates are relevant.** If the exclusion restriction is only plausible conditional on `X`, `iv_kitagawa` is misspecified and `iv_mw` is the correct choice. Running Kitagawa unconditionally on a design where `X` matters can produce spurious non-rejection.
-- **Many-instruments / judge regimes.** In judge-IV or examiner-IV settings the instrument often has 20 to 200 distinct values. `iv_kitagawa` loses power rapidly as `|Z|` grows because the test has to satisfy multiple inequalities simultaneously. `iv_testjfe` is designed for this case and is the current state-of-the-art; Frandsen, Lefgren, and Leslie (2023) document its finite-sample properties in the judge design.
+- **Many-instruments / judge regimes.** In judge-IV or examiner-IV settings the instrument often has 20 to 200 distinct values. `iv_kitagawa` loses power rapidly as `|Z|` grows because the test has to satisfy multiple inequalities simultaneously. `iv_testjfe` is designed for this case.
 - **Bootstrap size.** Default `n_boot = 1000` is fine for publication-grade p-values at alpha = 0.05. Cut to 200 for quick exploratory checks; raise to 5000 if reporting p-values to three decimal places. Parallelism via `parallel::mclapply` kicks in automatically on POSIX systems.
-- **Continuous instruments.** None of these tests apply to continuous Z directly. Discretise Z to a handful of bins (quartiles, quintiles) and run Kitagawa / Mourifie-Wan on the discretised instrument. Expect some loss of power. A continuous-Z extension (Kitagawa-Sun 2021, arXiv:2112.08092) is planned for v0.2.0.
+
+### Language implementations
+
+As of 2026-04-19 there is no equivalent package on PyPI. Kitagawa (2015) has Matlab supplementary code; Mourifie-Wan (2017) has a Stata `clrtest` implementation via Chernozhukov-Lee-Rosen; Frandsen-Lefgren-Leslie (2023) has a Stata `testjfe` SSC module. `ivcheck` is the first R-native implementation of this family.
 
 ## Planned for future versions
 
@@ -218,7 +238,7 @@ Underlying paper citations:
 | Function | Reference | DOI |
 |---|---|---|
 | `iv_kitagawa()` | Kitagawa, T. (2015). A Test for Instrument Validity. *Econometrica* 83(5): 2043-2063. | [10.3982/ECTA11974](https://doi.org/10.3982/ECTA11974) |
-| `iv_mw()` | Mourifie, I. and Wan, Y. (2017). Testing Local Average Treatment Effect Assumptions. *Review of Economics and Statistics* 99(2): 305-313. | [10.1162/REST_a_00628](https://doi.org/10.1162/REST_a_00628) |
+| `iv_mw()` | Mourifie, I. and Wan, Y. (2017). Testing Local Average Treatment Effect Assumptions. *Review of Economics and Statistics* 99(2): 305-313. | [10.1162/REST_a_00622](https://doi.org/10.1162/REST_a_00622) |
 | `iv_testjfe()` | Frandsen, B. R., Lefgren, L. J., and Leslie, E. C. (2023). Judging Judge Fixed Effects. *American Economic Review* 113(1): 253-277. | [10.1257/aer.20201860](https://doi.org/10.1257/aer.20201860) |
 
 Foundational LATE framework: Imbens and Angrist (1994), *Econometrica* 62(2): 467-475. Intersection-bounds inference used inside `iv_mw`: Chernozhukov, Lee, and Rosen (2013), *Econometrica* 81(2): 667-737. Related tests planned for v0.2.0: Huber and Mellace (2015, *ReStat*), Sun (2023, *JoE*), Arai, Hsu, Kitagawa, Mourifie, and Wan (2022, *QE*).

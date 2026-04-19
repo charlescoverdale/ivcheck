@@ -110,4 +110,8 @@ iv_testjfe(y, d, judge, n_boot = 200, parallel = FALSE)
 Frandsen, B. R., Lefgren, L. J., and Leslie, E. C. (2023). Judging
 Judge Fixed Effects. \emph{American Economic Review}, 113(1), 253-277.
 \doi{10.1257/aer.20201860}
+
+Imbens, G. W. and Angrist, J. D. (1994). Identification and Estimation
+of Local Average Treatment Effects. \emph{Econometrica}, 62(2), 467-475.
+\doi{10.2307/2951620}
 }

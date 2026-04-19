@@ -1,0 +1,91 @@
+citHeader(
+  "To cite the ivcheck package in publications, please cite both the",
+  "package and the underlying paper for the test you used. The",
+  "package provides a unified R interface to the named tests; the",
+  "tests themselves are the contribution of the authors below."
+)
+
+bibentry(
+  bibtype = "Manual",
+  title   = "ivcheck: Tests for Instrumental Variable Validity",
+  author  = person("Charles", "Coverdale"),
+  year    = "2026",
+  note    = "R package version 0.1.0",
+  url     = "https://github.com/charlescoverdale/ivcheck"
+)
+
+bibentry(
+  bibtype = "Article",
+  title   = "A Test for Instrument Validity",
+  author  = person("Toru", "Kitagawa"),
+  journal = "Econometrica",
+  year    = "2015",
+  volume  = "83",
+  number  = "5",
+  pages   = "2043--2063",
+  doi     = "10.3982/ECTA11974",
+  textVersion = paste(
+    "Kitagawa, T. (2015).",
+    "A Test for Instrument Validity.",
+    "Econometrica 83(5): 2043-2063.",
+    "doi:10.3982/ECTA11974."
+  )
+)
+
+bibentry(
+  bibtype = "Article",
+  title   = "Testing Local Average Treatment Effect Assumptions",
+  author  = c(person("Ismael", "Mourifie"),
+              person("Yuanyuan", "Wan")),
+  journal = "Review of Economics and Statistics",
+  year    = "2017",
+  volume  = "99",
+  number  = "2",
+  pages   = "305--313",
+  doi     = "10.1162/REST_a_00622",
+  textVersion = paste(
+    "Mourifie, I. and Wan, Y. (2017).",
+    "Testing Local Average Treatment Effect Assumptions.",
+    "Review of Economics and Statistics 99(2): 305-313.",
+    "doi:10.1162/REST_a_00622."
+  )
+)
+
+bibentry(
+  bibtype = "Article",
+  title   = "Judging Judge Fixed Effects",
+  author  = c(person("Brigham", "Frandsen"),
+              person("Lars", "Lefgren"),
+              person("Emily", "Leslie")),
+  journal = "American Economic Review",
+  year    = "2023",
+  volume  = "113",
+  number  = "1",
+  pages   = "253--277",
+  doi     = "10.1257/aer.20201860",
+  textVersion = paste(
+    "Frandsen, B. R., Lefgren, L. J., and Leslie, E. C. (2023).",
+    "Judging Judge Fixed Effects.",
+    "American Economic Review 113(1): 253-277.",
+    "doi:10.1257/aer.20201860."
+  )
+)
+
+bibentry(
+  bibtype = "Article",
+  title   = "Identification and Estimation of Local Average Treatment Effects",
+  author  = c(person("Guido", "Imbens"),
+              person("Joshua", "Angrist")),
+  journal = "Econometrica",
+  year    = "1994",
+  volume  = "62",
+  number  = "2",
+  pages   = "467--475",
+  doi     = "10.2307/2951620",
+  textVersion = paste(
+    "Imbens, G. W. and Angrist, J. D. (1994).",
+    "Identification and Estimation of Local Average Treatment Effects.",
+    "Econometrica 62(2): 467-475.",
+    "doi:10.2307/2951620."
+  )
+)
