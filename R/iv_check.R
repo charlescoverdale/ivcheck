@@ -50,6 +50,13 @@ iv_check <- function(model, tests = "all", alpha = 0.05,
     if (length(unknown) > 0L) {
       cli::cli_abort("Unknown test name{?s}: {.val {unknown}}.")
     }
+    dropped <- setdiff(tests, applicable)
+    if (length(dropped) > 0L) {
+      cli::cli_warn(
+        "Requested test{?s} {.val {dropped}} not applicable to this model; skipping."
+      )
+      tests <- intersect(tests, applicable)
+    }
   }
 
   results <- list()

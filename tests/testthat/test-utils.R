@@ -4,8 +4,16 @@ test_that("validate_binary accepts 0/1 vectors and rejects others", {
   expect_error(ivcheck:::validate_binary(c(1, 2, 3)), "binary")
 })
 
+test_that("validate_binary rejects NA", {
+  expect_error(ivcheck:::validate_binary(c(0, 1, NA, 1)), "NA")
+})
+
 test_that("validate_discrete enforces minimum two levels", {
   expect_error(ivcheck:::validate_discrete(rep(1, 10)), "two distinct")
+})
+
+test_that("validate_discrete rejects NA", {
+  expect_error(ivcheck:::validate_discrete(c(0, 1, NA, 2)), "NA")
 })
 
 test_that("check_lengths flags unequal lengths", {

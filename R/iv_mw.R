@@ -46,6 +46,11 @@
 #' of Local Average Treatment Effects. *Econometrica*, 62(2), 467-475.
 #' \doi{10.2307/2951620}
 #'
+#' @family iv_tests
+#' @seealso [iv_kitagawa()] for the unconditional case,
+#'   [iv_testjfe()] for the judge-design test, and [iv_check()] for a
+#'   one-shot wrapper that runs all applicable tests.
+#'
 #' @examples
 #' \donttest{
 #' set.seed(1)
@@ -70,7 +75,7 @@ iv_mw.default <- function(object, d, z, x = NULL, n_bins = 5L, grid = NULL,
   validate_numeric(y, "y")
   d_num <- validate_binary(d, "d")
   z_num <- validate_discrete(z, "z")
-  n <- check_lengths(y, d_num, z_num)
+  n <- as.integer(check_lengths(y, d_num, z_num))
 
   if (!is.null(weights)) {
     cli::cli_warn(
@@ -84,7 +89,7 @@ iv_mw.default <- function(object, d, z, x = NULL, n_bins = 5L, grid = NULL,
   }
 
   if (is.null(x)) {
-    core <- kitagawa_core_test(y, d_num, z_num, n_boot, alpha, parallel)
+    core <- kitagawa_core_test(y, d_num, z_num, n_boot, parallel)
     return(structure(
       list(
         test = "Mourifie-Wan (2017)",
@@ -128,7 +133,7 @@ iv_mw.default <- function(object, d, z, x = NULL, n_bins = 5L, grid = NULL,
     # loop to keep total cores bounded.
     per_bin[[b]] <- kitagawa_core_test(
       y[idx], d_num[idx], z_num[idx],
-      n_boot = n_boot, alpha = alpha, parallel = FALSE
+      n_boot = n_boot, parallel = FALSE
     )
   }
   valid <- which(!vapply(per_bin, is.null, logical(1)))

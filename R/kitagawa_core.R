@@ -8,7 +8,7 @@
 # Not exported.
 
 #' @noRd
-kitagawa_core_test <- function(y, d_num, z_num, n_boot, alpha, parallel) {
+kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel) {
   n <- length(y)
 
   # Order Z levels ascending by first-stage E[D | Z].

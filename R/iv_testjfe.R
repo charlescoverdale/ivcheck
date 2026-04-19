@@ -42,6 +42,11 @@
 #' of Local Average Treatment Effects. *Econometrica*, 62(2), 467-475.
 #' \doi{10.2307/2951620}
 #'
+#' @family iv_tests
+#' @seealso [iv_kitagawa()] for the unconditional binary-treatment test,
+#'   [iv_mw()] for the conditional version with covariates, and
+#'   [iv_check()] for a one-shot wrapper that runs all applicable tests.
+#'
 #' @examples
 #' \donttest{
 #' set.seed(1)

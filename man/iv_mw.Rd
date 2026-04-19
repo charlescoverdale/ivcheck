@@ -128,3 +128,13 @@ Imbens, G. W. and Angrist, J. D. (1994). Identification and Estimation
 of Local Average Treatment Effects. \emph{Econometrica}, 62(2), 467-475.
 \doi{10.2307/2951620}
 }
+\seealso{
+\code{\link[=iv_kitagawa]{iv_kitagawa()}} for the unconditional case,
+\code{\link[=iv_testjfe]{iv_testjfe()}} for the judge-design test, and \code{\link[=iv_check]{iv_check()}} for a
+one-shot wrapper that runs all applicable tests.
+
+Other iv_tests: 
+\code{\link{iv_kitagawa}()},
+\code{\link{iv_testjfe}()}
+}
+\concept{iv_tests}

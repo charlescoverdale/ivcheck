@@ -55,6 +55,11 @@
 #' of Local Average Treatment Effects. *Econometrica*, 62(2), 467-475.
 #' \doi{10.2307/2951620}
 #'
+#' @family iv_tests
+#' @seealso [iv_mw()] for the conditional version with covariates,
+#'   [iv_testjfe()] for the judge-design test, and [iv_check()] for a
+#'   one-shot wrapper that runs all applicable tests.
+#'
 #' @examples
 #' \donttest{
 #' # Valid IV: compliers exist, no violations
@@ -79,7 +84,7 @@ iv_kitagawa.default <- function(object, d, z, n_boot = 1000, alpha = 0.05,
   validate_numeric(y, "y")
   d_num <- validate_binary(d, "d")
   z_num <- validate_discrete(z, "z")
-  n <- check_lengths(y, d_num, z_num)
+  check_lengths(y, d_num, z_num)
 
   if (!is.null(weights)) {
     cli::cli_warn(
@@ -87,7 +92,7 @@ iv_kitagawa.default <- function(object, d, z, n_boot = 1000, alpha = 0.05,
     )
   }
 
-  core <- kitagawa_core_test(y, d_num, z_num, n_boot, alpha, parallel)
+  core <- kitagawa_core_test(y, d_num, z_num, n_boot, parallel)
 
   structure(
     list(
