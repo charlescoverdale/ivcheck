@@ -15,6 +15,7 @@ iv_kitagawa(object, ...)
   z,
   n_boot = 1000,
   alpha = 0.05,
+  weighting = c("variance", "unweighted"),
   weights = NULL,
   parallel = TRUE,
   ...
@@ -24,6 +25,7 @@ iv_kitagawa(object, ...)
   object,
   n_boot = 1000,
   alpha = 0.05,
+  weighting = c("variance", "unweighted"),
   weights = NULL,
   parallel = TRUE,
   ...
@@ -33,6 +35,7 @@ iv_kitagawa(object, ...)
   object,
   n_boot = 1000,
   alpha = 0.05,
+  weighting = c("variance", "unweighted"),
   weights = NULL,
   parallel = TRUE,
   ...
@@ -52,6 +55,14 @@ model from \link[fixest:feols]{fixest::feols} or \code{ivreg::ivreg()}.}
 \item{n_boot}{Number of multiplier-bootstrap replications. Default 1000.}
 
 \item{alpha}{Significance level for the returned verdict. Default 0.05.}
+
+\item{weighting}{Test-statistic weighting. \code{"variance"} (default)
+divides each pointwise difference by its plug-in standard error
+estimator before taking the sup, as in Kitagawa (2015) section 4.
+\code{"unweighted"} uses the raw positive-part KS of section 3. The
+two are asymptotically equivalent at the boundary of the null;
+\code{"variance"} has better finite-sample power when instrument cells
+have unequal sizes.}
 
 \item{weights}{Optional survey weights. Not yet implemented; reserved
 for v0.2.0.}

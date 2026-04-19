@@ -15,6 +15,13 @@
 #' @param z Discrete instrument (numeric or factor, default method only).
 #' @param n_boot Number of multiplier-bootstrap replications. Default 1000.
 #' @param alpha Significance level for the returned verdict. Default 0.05.
+#' @param weighting Test-statistic weighting. `"variance"` (default)
+#'   divides each pointwise difference by its plug-in standard error
+#'   estimator before taking the sup, as in Kitagawa (2015) section 4.
+#'   `"unweighted"` uses the raw positive-part KS of section 3. The
+#'   two are asymptotically equivalent at the boundary of the null;
+#'   `"variance"` has better finite-sample power when instrument cells
+#'   have unequal sizes.
 #' @param weights Optional survey weights. Not yet implemented; reserved
 #'   for v0.2.0.
 #' @param parallel Logical. Run bootstrap replications in parallel on
@@ -79,7 +86,9 @@ iv_kitagawa <- function(object, ...) {
 #' @rdname iv_kitagawa
 #' @export
 iv_kitagawa.default <- function(object, d, z, n_boot = 1000, alpha = 0.05,
+                                weighting = c("variance", "unweighted"),
                                 weights = NULL, parallel = TRUE, ...) {
+  weighting <- match.arg(weighting)
   y <- object
   validate_numeric(y, "y")
   d_num <- validate_binary(d, "d")
@@ -92,7 +101,8 @@ iv_kitagawa.default <- function(object, d, z, n_boot = 1000, alpha = 0.05,
     )
   }
 
-  core <- kitagawa_core_test(y, d_num, z_num, n_boot, parallel)
+  core <- kitagawa_core_test(y, d_num, z_num, n_boot, parallel,
+                             weighting = weighting)
 
   structure(
     list(
@@ -103,6 +113,7 @@ iv_kitagawa.default <- function(object, d, z, n_boot = 1000, alpha = 0.05,
       n_boot = n_boot,
       boot_stats = core$boot_stats,
       binding = core$binding,
+      weighting = weighting,
       n = core$n,
       call = sys.call()
     ),
@@ -113,11 +124,13 @@ iv_kitagawa.default <- function(object, d, z, n_boot = 1000, alpha = 0.05,
 #' @rdname iv_kitagawa
 #' @export
 iv_kitagawa.fixest <- function(object, n_boot = 1000, alpha = 0.05,
+                               weighting = c("variance", "unweighted"),
                                weights = NULL, parallel = TRUE, ...) {
+  weighting <- match.arg(weighting)
   yz <- extract_iv_data(object)
   iv_kitagawa.default(
     object = yz$y, d = yz$d, z = yz$z,
-    n_boot = n_boot, alpha = alpha,
+    n_boot = n_boot, alpha = alpha, weighting = weighting,
     weights = weights, parallel = parallel, ...
   )
 }
@@ -125,11 +138,13 @@ iv_kitagawa.fixest <- function(object, n_boot = 1000, alpha = 0.05,
 #' @rdname iv_kitagawa
 #' @export
 iv_kitagawa.ivreg <- function(object, n_boot = 1000, alpha = 0.05,
+                              weighting = c("variance", "unweighted"),
                               weights = NULL, parallel = TRUE, ...) {
+  weighting <- match.arg(weighting)
   yz <- extract_iv_data(object)
   iv_kitagawa.default(
     object = yz$y, d = yz$d, z = yz$z,
-    n_boot = n_boot, alpha = alpha,
+    n_boot = n_boot, alpha = alpha, weighting = weighting,
     weights = weights, parallel = parallel, ...
   )
 }

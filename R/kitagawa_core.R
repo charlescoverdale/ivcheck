@@ -5,10 +5,19 @@
 #   * iv_kitagawa() (unconditional case)
 #   * iv_mw()       (both unconditional and X-stratified cases)
 #
+# Supports both the unweighted form (Kitagawa 2015 section 3) and the
+# variance-weighted form (Kitagawa 2015 section 4). The variance-
+# weighted form divides each pointwise difference by its plug-in
+# standard error estimator before the sup-over-(y, pairs, d), which
+# gives better finite-sample power when cell sizes are unequal.
+#
 # Not exported.
 
 #' @noRd
-kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel) {
+kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
+                               weighting = c("variance", "unweighted"),
+                               se_floor = 0.001) {
+  weighting <- match.arg(weighting)
   n <- length(y)
 
   # Order Z levels ascending by first-stage E[D | Z].
@@ -42,6 +51,33 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel) {
     F_arr[, k, 1] <- colSums(leY_sub * (1 - d_sub)) / n_z[k]
   }
 
+  # SE matrix: SE[g, k, d_idx] = sqrt(n) * sd(F_hat(y, d | z))
+  # under binomial sampling, = sqrt(n * F * (1 - F) / n_z)
+  # = sqrt((n / n_z) * F * (1 - F)).
+  # The variance of sqrt(n) * (F_low - F_high) is SE_low^2 + SE_high^2
+  # (independent strata). Floor ensures we don't divide by zero where
+  # both F's are 0 or 1.
+  SE_arr <- if (weighting == "variance") {
+    out <- array(0, dim = c(G, K, 2))
+    for (k in seq_len(K)) {
+      if (n_z[k] == 0L) next
+      rf <- n / n_z[k]
+      for (d_idx in 1:2) {
+        Fv <- F_arr[, k, d_idx]
+        out[, k, d_idx] <- sqrt(pmax(rf * Fv * (1 - Fv), 0))
+      }
+    }
+    out
+  } else {
+    NULL
+  }
+
+  pair_se <- function(k_low, k_high, d_idx) {
+    if (is.null(SE_arr)) return(1)
+    s <- sqrt(SE_arr[, k_low, d_idx]^2 + SE_arr[, k_high, d_idx]^2)
+    pmax(s, se_floor)
+  }
+
   compute_stat <- function(F_arr_local) {
     best <- 0
     binding_local <- NULL
@@ -49,7 +85,8 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel) {
     for (k_low in seq_len(K - 1L)) {
       for (k_high in (k_low + 1L):K) {
         # d = 1 inequality: F(y, 1 | low) - F(y, 1 | high) <= 0
-        diffs1 <- F_arr_local[, k_low, 2] - F_arr_local[, k_high, 2]
+        scale1 <- pair_se(k_low, k_high, 2)
+        diffs1 <- (F_arr_local[, k_low, 2] - F_arr_local[, k_high, 2]) / scale1
         g1 <- which.max(diffs1)
         if (diffs1[g1] > best) {
           best <- diffs1[g1]
@@ -61,7 +98,8 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel) {
           )
         }
         # d = 0 inequality: F(y, 0 | high) - F(y, 0 | low) <= 0
-        diffs0 <- F_arr_local[, k_high, 1] - F_arr_local[, k_low, 1]
+        scale0 <- pair_se(k_low, k_high, 1)
+        diffs0 <- (F_arr_local[, k_high, 1] - F_arr_local[, k_low, 1]) / scale0
         g0 <- which.max(diffs0)
         if (diffs0[g0] > best) {
           best <- diffs0[g0]
@@ -78,7 +116,11 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel) {
   }
 
   obs <- compute_stat(F_arr)
-  T_n <- sqrt(n) * obs$stat
+  # For the unweighted form we still scale by sqrt(n). For the
+  # variance-weighted form the scaling is already absorbed into the SE
+  # denominator (SE contains the sqrt(n) rescale).
+  scale_n <- if (weighting == "variance") 1 else sqrt(n)
+  T_n <- scale_n * obs$stat
 
   # Precompute centred indicator matrices for the multiplier bootstrap.
   centred <- list()
@@ -121,7 +163,7 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel) {
   } else {
     vapply(seq_len(n_boot), function(b) one_boot(), numeric(1))
   }
-  boot_stats <- sqrt(n) * boot_stats
+  boot_stats <- scale_n * boot_stats
 
   p_value <- mean(boot_stats >= T_n)
 
@@ -130,6 +172,7 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel) {
     p_value = p_value,
     boot_stats = boot_stats,
     binding = obs$binding,
-    n = n
+    n = n,
+    weighting = weighting
   )
 }
