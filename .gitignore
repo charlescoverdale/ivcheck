@@ -7,3 +7,12 @@
 *.Rcheck
 inst/doc
 .DS_Store
+paper/rj/paper.tex
+paper/rj/paper.knit.md
+paper/rj/paper.R
+paper/rj/RJwrapper.aux
+paper/rj/RJwrapper.out
+paper/rj/RJwrapper.bbl
+paper/rj/RJwrapper.blg
+paper/rj/RJwrapper.log
+paper/rj/paper_files
