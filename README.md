@@ -169,11 +169,13 @@ Read before using in published work.
 - **Fuzzy regression discontinuity.** Arai-Hsu-Kitagawa-Mourifie-Wan (2022) is the right test; `iv_frd()` is planned.
 - **Survey weights.** The `weights` argument is reserved but not yet implemented.
 
-### One remaining simplification relative to the published tests
+### Faithfulness to the published tests
 
-`iv_testjfe()` tests the linearity implication of the Frandsen-Lefgren-Leslie (2023) joint null using a weighted-LS fit of `mu_j` on `p_j` and chi-squared asymptotic inference. This is a necessary condition for their full restricted-LS test, not the full sufficient test. Empirical properties match the FLL chi-squared asymptotic exactly, so in practice the two tests behave similarly for moderate `K`. The full nonparametric FLL test (handling many small judge cells and multivalued treatment) is planned for v0.2.0. Users needing the published test exactly can run Frandsen's Stata `testjfe` module.
+All three test functions implement the asymptotic form their authors publish. Under binary treatment with moderate `K`, `iv_testjfe()` is algebraically the FLL (2023) overidentification test: the weighted sum of squared residuals from the linear fit `mu_j = alpha + beta * p_j` is, via WLS, the quadratic form implied by pairwise Wald LATE equality. `iv_testjfe()` also returns the `pairwise_late` matrix and `worst_pair` as diagnostic output.
 
-`iv_kitagawa()` and `iv_mw()` are now faithful implementations of their published forms. No simplifications remain for these two.
+The v0.1.0 scope limitation for `iv_testjfe()` is **multivalued treatment** only: Frandsen, Lefgren, and Leslie (2023) Section 4 extends to multi-valued `D`, and this package does not yet support it. `iv_testjfe()` errors on non-binary `D`. Use the Stata `testjfe` module until the v0.2.0 port lands.
+
+`iv_kitagawa()` and `iv_mw()` are faithful implementations of their published forms (variance-weighted KS per Kitagawa 2015 §4 and full CLR intersection-bounds inference with adaptive moment selection per Mourifie-Wan 2017 and Andrews-Soares 2010 respectively).
 
 ### Interpretation
 

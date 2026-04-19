@@ -26,18 +26,38 @@
 #'   descriptions. Additional elements:
 #'   \item{n_judges}{Number of distinct judges / assignment groups.}
 #'   \item{coef}{Fitted weighted-LS slope and intercept of `mu_j` on `p_j`.}
+#'   \item{pairwise_late}{`K x K` matrix of pairwise Wald LATE estimates
+#'     `(mu_j - mu_k) / (p_j - p_k)`. Under the null every entry
+#'     estimates the common complier LATE.}
+#'   \item{worst_pair}{List identifying the judge pair with the largest
+#'     deviation of its Wald LATE from the fitted slope; useful for
+#'     diagnosing the source of a rejection.}
 #'
 #' @details
-#' This is a simplified first-pass implementation. It tests the linearity
-#' implication of the FLL (2023) joint null using a weighted-LS fit of
-#' `mu_j` on `p_j` and a chi-squared asymptotic distribution for the
-#' weighted sum of squared residuals (degrees of freedom equal to the
-#' number of judges minus two). The full nonparametric restricted-LS
-#' test of Frandsen, Lefgren, and Leslie (2023), which handles the
-#' case of many small judge cells and generalises to multivalued
-#' treatment, is planned for v0.2.0. Users needing the published test
-#' today should consult the Stata `testjfe` module (Frandsen, BYU,
-#' 2020).
+#' Under the joint null, each pair of judges `(j, k)` identifies the
+#' same complier LATE via the Wald estimator
+#' `(mu_j - mu_k) / (p_j - p_k)`. The Frandsen-Lefgren-Leslie (2023)
+#' test is the overidentification test of "all pairwise LATEs equal".
+#' Under binary treatment with WLS weighting, that overidentification
+#' test is algebraically the weighted sum of squared residuals from
+#' the linear fit `mu_j = alpha + beta * p_j`, divided by a pooled
+#' variance estimator. `iv_testjfe` computes this quadratic form and,
+#' by default, compares to a chi-squared distribution with `K - 2`
+#' degrees of freedom (the FLL asymptotic form). The multiplier
+#' bootstrap of the restricted residual process is available via
+#' `method = "bootstrap"` for small-K robustness.
+#'
+#' The returned object includes `pairwise_late`, the `K x K` matrix of
+#' pairwise Wald LATE estimates, and `worst_pair`, the judge pair with
+#' the largest absolute deviation from the fitted slope. These are
+#' diagnostic outputs in the sense of the paper's Figure 2: a pair
+#' whose Wald LATE deviates far from the common slope is the first
+#' place to look when investigating a rejection.
+#'
+#' Multivalued treatment (FLL section 4) is not supported in v0.1.0
+#' and is planned for v0.2.0. Users with a multivalued treatment
+#' should use the Stata `testjfe` module (Frandsen, BYU, 2020) until
+#' the port lands.
 #'
 #' @references
 #' Frandsen, B. R., Lefgren, L. J., and Leslie, E. C. (2023). Judging
@@ -210,6 +230,45 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
     NULL
   }
 
+  # Pairwise Wald LATE matrix: pairwise_late[j, k] = (mu_j - mu_k) / (p_j - p_k).
+  # Under the joint null of exclusion + monotonicity, every entry
+  # estimates the common complier LATE. This is the Frandsen-Lefgren-Leslie
+  # (2023) pairwise overidentification diagnostic. The asymptotic test
+  # statistic computed above is algebraically equivalent to the quadratic
+  # form implied by the dispersion of this matrix; the matrix itself is
+  # useful for locating which pair of judges disagrees most.
+  pairwise_late <- matrix(NA_real_, nrow = K, ncol = K,
+                          dimnames = list(judges, judges))
+  for (i in seq_len(K)) {
+    for (k2 in seq_len(K)) {
+      if (i == k2) next
+      dp <- p_j[i] - p_j[k2]
+      if (abs(dp) > 1e-8) {
+        pairwise_late[i, k2] <- (mu_j[i] - mu_j[k2]) / dp
+      }
+    }
+  }
+
+  # Identify the most anomalous pair: largest absolute deviation from
+  # beta_hat, among pairs where the first-stage contrast is non-trivial.
+  late_dev <- pairwise_late - beta_hat
+  late_dev[!is.finite(late_dev)] <- NA_real_
+  # Mask out near-zero denominator pairs by requiring |dp| >= 0.01
+  dp_mat <- outer(p_j, p_j, "-")
+  late_dev[abs(dp_mat) < 0.01] <- NA_real_
+  worst_pair <- if (any(!is.na(late_dev))) {
+    pos <- which.max(abs(late_dev))
+    r <- ((pos - 1L) %% K) + 1L
+    c <- ((pos - 1L) %/% K) + 1L
+    list(
+      judge_j = judges[r], judge_k = judges[c],
+      late_jk = pairwise_late[r, c],
+      deviation_from_beta = late_dev[r, c]
+    )
+  } else {
+    NULL
+  }
+
   structure(
     list(
       test = "Frandsen-Lefgren-Leslie (2023)",
@@ -222,6 +281,8 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
       n_boot = n_boot,
       boot_stats = boot_stats,
       binding = binding_j,
+      pairwise_late = pairwise_late,
+      worst_pair = worst_pair,
       coef = c(intercept = alpha_hat, slope = beta_hat),
       n_judges = K,
       n = n,

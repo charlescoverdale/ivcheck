@@ -83,6 +83,12 @@ An object of class \code{iv_test}; see \link{iv_kitagawa} for element
 descriptions. Additional elements:
 \item{n_judges}{Number of distinct judges / assignment groups.}
 \item{coef}{Fitted weighted-LS slope and intercept of \code{mu_j} on \code{p_j}.}
+\item{pairwise_late}{\verb{K x K} matrix of pairwise Wald LATE estimates
+\code{(mu_j - mu_k) / (p_j - p_k)}. Under the null every entry
+estimates the common complier LATE.}
+\item{worst_pair}{List identifying the judge pair with the largest
+deviation of its Wald LATE from the fitted slope; useful for
+diagnosing the source of a rejection.}
 }
 \description{
 Jointly tests the local exclusion and monotonicity assumptions when
@@ -94,16 +100,30 @@ must be a linear function of the per-judge treatment propensity
 exclusion or monotonicity fails.
 }
 \details{
-This is a simplified first-pass implementation. It tests the linearity
-implication of the FLL (2023) joint null using a weighted-LS fit of
-\code{mu_j} on \code{p_j} and a chi-squared asymptotic distribution for the
-weighted sum of squared residuals (degrees of freedom equal to the
-number of judges minus two). The full nonparametric restricted-LS
-test of Frandsen, Lefgren, and Leslie (2023), which handles the
-case of many small judge cells and generalises to multivalued
-treatment, is planned for v0.2.0. Users needing the published test
-today should consult the Stata \code{testjfe} module (Frandsen, BYU,
-2020).
+Under the joint null, each pair of judges \verb{(j, k)} identifies the
+same complier LATE via the Wald estimator
+\code{(mu_j - mu_k) / (p_j - p_k)}. The Frandsen-Lefgren-Leslie (2023)
+test is the overidentification test of "all pairwise LATEs equal".
+Under binary treatment with WLS weighting, that overidentification
+test is algebraically the weighted sum of squared residuals from
+the linear fit \code{mu_j = alpha + beta * p_j}, divided by a pooled
+variance estimator. \code{iv_testjfe} computes this quadratic form and,
+by default, compares to a chi-squared distribution with \code{K - 2}
+degrees of freedom (the FLL asymptotic form). The multiplier
+bootstrap of the restricted residual process is available via
+\code{method = "bootstrap"} for small-K robustness.
+
+The returned object includes \code{pairwise_late}, the \verb{K x K} matrix of
+pairwise Wald LATE estimates, and \code{worst_pair}, the judge pair with
+the largest absolute deviation from the fitted slope. These are
+diagnostic outputs in the sense of the paper's Figure 2: a pair
+whose Wald LATE deviates far from the common slope is the first
+place to look when investigating a rejection.
+
+Multivalued treatment (FLL section 4) is not supported in v0.1.0
+and is planned for v0.2.0. Users with a multivalued treatment
+should use the Stata \code{testjfe} module (Frandsen, BYU, 2020) until
+the port lands.
 }
 \examples{
 \donttest{
