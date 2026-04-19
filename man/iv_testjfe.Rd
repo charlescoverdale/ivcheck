@@ -92,12 +92,12 @@ diagnosing the source of a rejection.}
 }
 \description{
 Jointly tests the local exclusion and monotonicity assumptions when
-treatment is binary and the instruments are a set of mutually
-exclusive dummy variables (the leniency-of-assigned-judge design).
-Under the joint null, the per-judge mean outcome \verb{mu_j = E[Y | J = j]}
-must be a linear function of the per-judge treatment propensity
-\verb{p_j = E[D | J = j]}. Rejection is evidence that at least one of
-exclusion or monotonicity fails.
+the instruments are a set of mutually exclusive dummy variables (the
+leniency-of-assigned-judge design). Supports binary and multivalued
+discrete treatments. Under the joint null, the per-judge mean
+outcome \verb{mu_j = E[Y | J = j]} must be a linear function of the
+per-judge treatment propensities \verb{P(D = d | J = j)}. Rejection is
+evidence that at least one of exclusion or monotonicity fails.
 }
 \details{
 Under the joint null, each pair of judges \verb{(j, k)} identifies the
@@ -120,10 +120,12 @@ diagnostic outputs in the sense of the paper's Figure 2: a pair
 whose Wald LATE deviates far from the common slope is the first
 place to look when investigating a rejection.
 
-Multivalued treatment (FLL section 4) is not supported in v0.1.0
-and is planned for v0.2.0. Users with a multivalued treatment
-should use the Stata \code{testjfe} module (Frandsen, BYU, 2020) until
-the port lands.
+Multivalued treatment is supported: for \code{D} with \code{M + 1} distinct
+values (\verb{0, 1, ..., M}), the fit becomes a multiple WLS regression
+of \code{mu_j} on the \code{M}-vector \verb{(P(D = 1 | J), ..., P(D = M | J))} and
+the test statistic is compared to \verb{chi^2_\{K - M - 1\}} (FLL 2023
+section 4). \code{pairwise_late} and \code{worst_pair} are only defined for
+binary \code{D} and return \code{NULL} otherwise.
 }
 \examples{
 \donttest{

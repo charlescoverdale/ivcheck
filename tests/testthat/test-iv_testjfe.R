@@ -54,6 +54,47 @@ test_that("iv_testjfe rejects a large exclusion violation", {
   expect_lt(out$p_value, 0.05)
 })
 
+test_that("iv_testjfe handles multivalued treatment", {
+  set.seed(1)
+  K <- 12
+  n <- 2000
+  judge <- sample.int(K, n, replace = TRUE)
+  # Multivalued D: 0, 1, 2
+  d <- vapply(judge, function(j) {
+    u <- runif(1)
+    p_hi <- 0.1 + 0.03 * j
+    p_md <- 0.4
+    if (u < p_hi) 2L else if (u < p_hi + p_md) 1L else 0L
+  }, integer(1))
+  y <- rnorm(n, mean = d)
+  out <- iv_testjfe(y, d, judge, n_boot = 30, parallel = FALSE)
+  expect_s3_class(out, "iv_test")
+  expect_equal(out$n_treatment_levels, 3L)
+  expect_null(out$pairwise_late)
+  expect_null(out$worst_pair)
+  expect_named(out$coef, c("intercept", "beta_d1", "beta_d2"))
+  expect_true(is.finite(out$p_value))
+  expect_gt(out$p_value, 0.05)
+})
+
+test_that("iv_testjfe multivalued rejects a large violation", {
+  skip_on_cran()
+  set.seed(2)
+  K <- 15
+  n <- 3000
+  judge <- sample.int(K, n, replace = TRUE)
+  d <- vapply(judge, function(j) {
+    u <- runif(1)
+    p_hi <- 0.1 + 0.03 * j
+    p_md <- 0.4
+    if (u < p_hi) 2L else if (u < p_hi + p_md) 1L else 0L
+  }, integer(1))
+  # Direct non-linear judge effect
+  y <- rnorm(n, mean = d + 1.0 * sin(judge))
+  out <- iv_testjfe(y, d, judge, n_boot = 30, parallel = FALSE)
+  expect_lt(out$p_value, 0.05)
+})
+
 test_that("iv_testjfe accepts covariates and residualises internally", {
   set.seed(1)
   K <- 10

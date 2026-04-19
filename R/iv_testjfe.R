@@ -2,12 +2,12 @@
 #' judge-fixed-effects designs
 #'
 #' Jointly tests the local exclusion and monotonicity assumptions when
-#' treatment is binary and the instruments are a set of mutually
-#' exclusive dummy variables (the leniency-of-assigned-judge design).
-#' Under the joint null, the per-judge mean outcome `mu_j = E[Y | J = j]`
-#' must be a linear function of the per-judge treatment propensity
-#' `p_j = E[D | J = j]`. Rejection is evidence that at least one of
-#' exclusion or monotonicity fails.
+#' the instruments are a set of mutually exclusive dummy variables (the
+#' leniency-of-assigned-judge design). Supports binary and multivalued
+#' discrete treatments. Under the joint null, the per-judge mean
+#' outcome `mu_j = E[Y | J = j]` must be a linear function of the
+#' per-judge treatment propensities `P(D = d | J = j)`. Rejection is
+#' evidence that at least one of exclusion or monotonicity fails.
 #'
 #' @inheritParams iv_kitagawa
 #' @param z Factor, integer, or matrix of mutually exclusive dummy
@@ -54,10 +54,12 @@
 #' whose Wald LATE deviates far from the common slope is the first
 #' place to look when investigating a rejection.
 #'
-#' Multivalued treatment (FLL section 4) is not supported in v0.1.0
-#' and is planned for v0.2.0. Users with a multivalued treatment
-#' should use the Stata `testjfe` module (Frandsen, BYU, 2020) until
-#' the port lands.
+#' Multivalued treatment is supported: for `D` with `M + 1` distinct
+#' values (`0, 1, ..., M`), the fit becomes a multiple WLS regression
+#' of `mu_j` on the `M`-vector `(P(D = 1 | J), ..., P(D = M | J))` and
+#' the test statistic is compared to `chi^2_{K - M - 1}` (FLL 2023
+#' section 4). `pairwise_late` and `worst_pair` are only defined for
+#' binary `D` and return `NULL` otherwise.
 #'
 #' @references
 #' Frandsen, B. R., Lefgren, L. J., and Leslie, E. C. (2023). Judging
@@ -98,9 +100,13 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
   method <- match.arg(method)
   y <- object
   validate_numeric(y, "y")
-  d_num <- validate_binary(d, "d")
+  d_num <- validate_treatment_discrete(d, "d", max_levels = 20L)
   z_num <- validate_discrete(z, "z", max_levels = 500L)
   n <- check_lengths(y, d_num, z_num)
+
+  # Capture treatment levels BEFORE any residualisation on covariates.
+  d_vals <- sort(unique(d_num))
+  M <- length(d_vals) - 1L
 
   if (!is.null(weights)) {
     cli::cli_warn(
@@ -108,7 +114,11 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
     )
   }
 
-  # Residualise y and d on x if supplied
+  # Residualise y and the treatment-indicator columns on x if supplied.
+  # Keep d_num (discrete level labels) intact so that level-based
+  # bookkeeping still works; residualisation applies to the indicators
+  # used in P_design, not the raw level labels.
+  d_num_raw <- d_num
   if (!is.null(x)) {
     x_mat <- if (is.matrix(x) || is.data.frame(x)) as.matrix(x) else cbind(x)
     if (nrow(x_mat) != n) {
@@ -117,40 +127,76 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
     validate_numeric(as.vector(x_mat), "x")
     design <- cbind(1, x_mat)
     y <- as.numeric(stats::residuals(stats::lm.fit(design, y)))
-    d_num <- as.numeric(stats::residuals(stats::lm.fit(design, d_num)))
+    if (M == 1L) {
+      d_num <- as.numeric(stats::residuals(stats::lm.fit(design, d_num)))
+    }
+    # For multivalued d: residualisation is applied inside P_design
+    # construction (per-level). Do not overwrite d_num.
   }
 
   judges <- sort(unique(z_num))
   K <- length(judges)
+
   if (K < 3L) {
     cli::cli_abort(
       "{.fn iv_testjfe} requires at least three distinct judge levels; found {K}."
     )
   }
+  if (K <= M + 1L) {
+    cli::cli_abort(
+      "{.fn iv_testjfe} needs K > M + 1 (K = {K} judges, M = {M} non-zero treatment levels) to have positive degrees of freedom."
+    )
+  }
 
-  # Per-judge moments
+  # Per-judge moments. For multivalued d, P_j is a (K x M) matrix of
+  # per-judge per-treatment-level propensities (dropping the reference
+  # category d = 0). For binary d this reduces to a K-vector.
   n_j <- vapply(judges, function(j) sum(z_num == j), integer(1))
-  p_j <- vapply(judges, function(j) mean(d_num[z_num == j]), numeric(1))
   mu_j <- vapply(judges, function(j) mean(y[z_num == j]), numeric(1))
+  if (M == 1L) {
+    p_j <- vapply(judges, function(j) mean(d_num[z_num == j]), numeric(1))
+    P_design <- cbind(1, p_j)
+  } else {
+    # Build per-level indicators, optionally residualising on x, then
+    # average per judge.
+    P_design <- matrix(0, nrow = K, ncol = M + 1L)
+    P_design[, 1L] <- 1
+    for (m in seq_len(M)) {
+      dv <- d_vals[m + 1L]
+      ind <- as.numeric(d_num_raw == dv)
+      if (!is.null(x)) {
+        design <- cbind(1, x_mat)
+        ind <- as.numeric(stats::residuals(stats::lm.fit(design, ind)))
+      }
+      P_design[, m + 1L] <- vapply(judges, function(j) {
+        mean(ind[z_num == j])
+      }, numeric(1))
+    }
+  }
 
-  # Weighted-LS fit mu_j ~ 1 + p_j with weights n_j
-  # (minimise sum_j n_j * (mu_j - alpha - beta * p_j)^2)
-  sw <- sum(n_j)
-  p_bar <- sum(n_j * p_j) / sw
-  mu_bar <- sum(n_j * mu_j) / sw
-  s_pp <- sum(n_j * (p_j - p_bar)^2)
-  s_pm <- sum(n_j * (p_j - p_bar) * (mu_j - mu_bar))
-  beta_hat <- if (s_pp > 0) s_pm / s_pp else 0
-  alpha_hat <- mu_bar - beta_hat * p_bar
-  mu_fit <- alpha_hat + beta_hat * p_j
+  # Weighted-LS fit mu_j ~ P_design with weights n_j.
+  W <- diag(sqrt(n_j))
+  lhs <- W %*% P_design
+  rhs <- W %*% mu_j
+  qr_fit <- qr(lhs)
+  coef_fit <- qr.coef(qr_fit, rhs)
+  alpha_hat <- coef_fit[1L]
+  beta_vec <- coef_fit[-1L]
+  mu_fit <- as.numeric(P_design %*% coef_fit)
   resid_j <- mu_j - mu_fit
 
-  # Pooled within-judge variance estimator, using the structural residuals
-  # u_i = y_i - alpha_hat - beta_hat * d_i. This removes the first-stage
-  # binomial contribution of D, so sigma2_hat matches the asymptotic
-  # variance of (mu_j_hat - alpha_0 - beta_0 * p_j_hat). Under the FLL
-  # null, the resulting T_n has chi^2_{K-2} distribution.
-  u_i <- y - alpha_hat - beta_hat * d_num
+  # Structural residuals u_i for pooled variance: remove the fitted
+  # marginal effects of each treatment level.
+  if (M == 1L) {
+    u_i <- y - alpha_hat - beta_vec * d_num
+  } else {
+    beta_full <- numeric(length(d_vals))
+    beta_full[match(d_vals[-1L], d_vals)] <- beta_vec
+    # d_num_raw has the discrete levels; u_i uses the raw indicators
+    # plus the residualised y.
+    idx_map <- match(d_num_raw, d_vals)
+    u_i <- y - alpha_hat - beta_full[idx_map]
+  }
   ss_within <- 0
   for (j_idx in seq_len(K)) {
     idx <- which(z_num == judges[j_idx])
@@ -166,32 +212,59 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
     NA_real_
   }
 
-  df_test <- K - 2L
-  p_value_asy <- if (is.finite(T_n)) 1 - stats::pchisq(T_n, df = df_test) else NA_real_
+  df_test <- K - (M + 1L)
+  p_value_asy <- if (is.finite(T_n) && df_test > 0L) {
+    1 - stats::pchisq(T_n, df = df_test)
+  } else {
+    NA_real_
+  }
 
-  # A bootstrap analogue of the test statistic (multiplier on within-
-  # judge deviations), kept for consistency with the other tests and
-  # for an alternative p-value when large-K asymptotics are suspect.
+  # Legacy scalar p_j is used by the binary pairwise diagnostics below.
+  if (M == 1L) {
+    beta_hat <- beta_vec
+  } else {
+    beta_hat <- NA_real_
+    p_j <- rep(NA_real_, K)
+  }
+
+  # Multiplier bootstrap over per-judge (mu, P_design) deviations. Works
+  # for both the binary and multivalued case.
   one_boot <- function() {
-    W <- sample(c(-1, 1), n, replace = TRUE)
+    Wv <- sample(c(-1, 1), n, replace = TRUE)
     mu_star <- vapply(seq_len(K), function(j_idx) {
       idx <- which(z_num == judges[j_idx])
-      sum(W[idx] * (y[idx] - mu_j[j_idx])) / length(idx)
+      sum(Wv[idx] * (y[idx] - mu_j[j_idx])) / length(idx)
     }, numeric(1))
-    p_star <- vapply(seq_len(K), function(j_idx) {
-      idx <- which(z_num == judges[j_idx])
-      sum(W[idx] * (d_num[idx] - p_j[j_idx])) / length(idx)
-    }, numeric(1))
-    # Bootstrap fit: regress (mu_j + mu_star) on (p_j + p_star) with weights
-    pb <- p_j + p_star
-    mb <- mu_j + mu_star
-    pbar_b <- sum(n_j * pb) / sw
-    mbar_b <- sum(n_j * mb) / sw
-    s_pp_b <- sum(n_j * (pb - pbar_b)^2)
-    s_pm_b <- sum(n_j * (pb - pbar_b) * (mb - mbar_b))
-    beta_b <- if (s_pp_b > 0) s_pm_b / s_pp_b else 0
-    alpha_b <- mbar_b - beta_b * pbar_b
-    fit_b <- alpha_b + beta_b * pb
+    # P_star: bootstrap analogue of per-judge propensity design matrix.
+    # Perturb each column of P_design by the corresponding centered
+    # indicator projection through the multiplier weights.
+    P_star <- matrix(0, nrow = K, ncol = ncol(P_design))
+    P_star[, 1L] <- 0  # intercept column has no noise
+    if (M == 1L) {
+      P_star[, 2L] <- vapply(seq_len(K), function(j_idx) {
+        idx <- which(z_num == judges[j_idx])
+        sum(Wv[idx] * (d_num[idx] - p_j[j_idx])) / length(idx)
+      }, numeric(1))
+    } else {
+      for (m in seq_len(M)) {
+        dv <- d_vals[m + 1L]
+        col_m <- P_design[, m + 1L]
+        P_star[, m + 1L] <- vapply(seq_len(K), function(j_idx) {
+          idx <- which(z_num == judges[j_idx])
+          sum(Wv[idx] * ((d_num_raw[idx] == dv) - col_m[j_idx])) / length(idx)
+        }, numeric(1))
+      }
+    }
+    # Bootstrap WLS fit on (P_design + P_star, mu + mu_star)
+    P_b <- P_design + P_star
+    mu_b <- mu_j + mu_star
+    Wdiag <- diag(sqrt(n_j))
+    coef_b <- tryCatch(
+      qr.coef(qr(Wdiag %*% P_b), Wdiag %*% mu_b),
+      error = function(e) rep(NA_real_, ncol(P_b))
+    )
+    if (any(!is.finite(coef_b))) return(NA_real_)
+    fit_b <- as.numeric(P_b %*% coef_b)
     resid_b <- mu_star - (fit_b - mu_fit)
     if (is.finite(sigma2_hat) && sigma2_hat > 0) {
       sum(n_j * resid_b^2) / sigma2_hat
@@ -225,48 +298,52 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
 
   binding_j <- if (all(is.finite(resid_j))) {
     idx <- which.max(abs(resid_j))
-    list(judge = judges[idx], mu = mu_j[idx], p = p_j[idx], residual = resid_j[idx])
+    if (M == 1L) {
+      list(judge = judges[idx], mu = mu_j[idx], p = p_j[idx],
+           residual = resid_j[idx])
+    } else {
+      list(judge = judges[idx], mu = mu_j[idx],
+           residual = resid_j[idx])
+    }
   } else {
     NULL
   }
 
-  # Pairwise Wald LATE matrix: pairwise_late[j, k] = (mu_j - mu_k) / (p_j - p_k).
-  # Under the joint null of exclusion + monotonicity, every entry
-  # estimates the common complier LATE. This is the Frandsen-Lefgren-Leslie
-  # (2023) pairwise overidentification diagnostic. The asymptotic test
-  # statistic computed above is algebraically equivalent to the quadratic
-  # form implied by the dispersion of this matrix; the matrix itself is
-  # useful for locating which pair of judges disagrees most.
-  pairwise_late <- matrix(NA_real_, nrow = K, ncol = K,
-                          dimnames = list(judges, judges))
-  for (i in seq_len(K)) {
-    for (k2 in seq_len(K)) {
-      if (i == k2) next
-      dp <- p_j[i] - p_j[k2]
-      if (abs(dp) > 1e-8) {
-        pairwise_late[i, k2] <- (mu_j[i] - mu_j[k2]) / dp
+  # Pairwise Wald LATE matrix (binary D only). Under binary treatment,
+  # each pair of judges identifies the common complier LATE via
+  # (mu_j - mu_k) / (p_j - p_k). Not defined for multivalued D; NULL is
+  # returned in that case.
+  if (M == 1L) {
+    pairwise_late <- matrix(NA_real_, nrow = K, ncol = K,
+                            dimnames = list(judges, judges))
+    for (i in seq_len(K)) {
+      for (k2 in seq_len(K)) {
+        if (i == k2) next
+        dp <- p_j[i] - p_j[k2]
+        if (abs(dp) > 1e-8) {
+          pairwise_late[i, k2] <- (mu_j[i] - mu_j[k2]) / dp
+        }
       }
     }
-  }
-
-  # Identify the most anomalous pair: largest absolute deviation from
-  # beta_hat, among pairs where the first-stage contrast is non-trivial.
-  late_dev <- pairwise_late - beta_hat
-  late_dev[!is.finite(late_dev)] <- NA_real_
-  # Mask out near-zero denominator pairs by requiring |dp| >= 0.01
-  dp_mat <- outer(p_j, p_j, "-")
-  late_dev[abs(dp_mat) < 0.01] <- NA_real_
-  worst_pair <- if (any(!is.na(late_dev))) {
-    pos <- which.max(abs(late_dev))
-    r <- ((pos - 1L) %% K) + 1L
-    c <- ((pos - 1L) %/% K) + 1L
-    list(
-      judge_j = judges[r], judge_k = judges[c],
-      late_jk = pairwise_late[r, c],
-      deviation_from_beta = late_dev[r, c]
-    )
+    late_dev <- pairwise_late - beta_hat
+    late_dev[!is.finite(late_dev)] <- NA_real_
+    dp_mat <- outer(p_j, p_j, "-")
+    late_dev[abs(dp_mat) < 0.01] <- NA_real_
+    worst_pair <- if (any(!is.na(late_dev))) {
+      pos <- which.max(abs(late_dev))
+      r <- ((pos - 1L) %% K) + 1L
+      c <- ((pos - 1L) %/% K) + 1L
+      list(
+        judge_j = judges[r], judge_k = judges[c],
+        late_jk = pairwise_late[r, c],
+        deviation_from_beta = late_dev[r, c]
+      )
+    } else {
+      NULL
+    }
   } else {
-    NULL
+    pairwise_late <- NULL
+    worst_pair <- NULL
   }
 
   structure(
@@ -283,8 +360,11 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
       binding = binding_j,
       pairwise_late = pairwise_late,
       worst_pair = worst_pair,
-      coef = c(intercept = alpha_hat, slope = beta_hat),
+      coef = if (M == 1L) c(intercept = alpha_hat, slope = beta_hat)
+             else c(intercept = alpha_hat, stats::setNames(beta_vec,
+                    paste0("beta_d", d_vals[-1L]))),
       n_judges = K,
+      n_treatment_levels = M + 1L,
       n = n,
       call = sys.call()
     ),
