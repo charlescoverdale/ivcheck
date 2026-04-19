@@ -1,0 +1,127 @@
+---
+title: "Using ivcheck with fixest"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Using ivcheck with fixest}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "figures/with-fixest-"
+)
+set.seed(1)
+```
+
+## Why this vignette matters
+
+`fixest` is the dominant R package for applied IV estimation. This vignette shows the drop-in integration: fit an IV model with `feols()`, pass it to `iv_check()`, and get every applicable IV-validity test in one call.
+
+If you are already using `fixest` for your paper, nothing about your workflow changes. Add one line and your IV estimate now comes with a published falsification test.
+
+## Setup
+
+```{r, message = FALSE}
+library(ivcheck)
+library(fixest)
+```
+
+## The Card (1995) proximity-to-college IV
+
+Card's (1995) classic IV for the return to schooling uses proximity to a four-year college as an instrument for completed schooling. The bundled `card1995` dataset is a cleaned extract from the National Longitudinal Survey of Young Men.
+
+```{r}
+data(card1995)
+head(card1995[, c("lwage", "educ", "college", "near_college",
+                  "age", "black", "south")])
+```
+
+Two variants are included: the continuous `educ` (years of schooling) and a binary `college` indicator (`educ >= 16`) for use with tests that require a binary treatment.
+
+## Fit the IV regression
+
+```{r}
+m <- feols(
+  lwage ~ age + black + south | college ~ near_college,
+  data = card1995
+)
+summary(m)
+```
+
+The endogenous variable `college` is instrumented by `near_college`. The first-stage F is strong. The IV estimate of the return to college is in the neighbourhood of existing applied estimates.
+
+## Run every applicable IV-validity test
+
+```{r}
+chk <- iv_check(m, n_boot = 500, parallel = FALSE)
+print(chk)
+```
+
+`iv_check()` inspects the model, detects that `college` is binary and `near_college` is a discrete instrument, and runs Kitagawa (2015) and Mourifie-Wan (2017). Neither test rejects; the IV passes. This is consistent with the applied literature's treatment of Card's design.
+
+## Dispatching directly on the model
+
+If you want to run a single test rather than the full suite, each function dispatches on `fixest` objects too:
+
+```{r}
+iv_kitagawa(m, n_boot = 300, parallel = FALSE)
+```
+
+The function extracts `y`, `d`, and `z` from the fitted model (including the first stage) and runs the test. You never touch the raw vectors.
+
+## Inspecting the bootstrap distribution
+
+```{r, fig.width = 6, fig.height = 4}
+k <- iv_kitagawa(m, n_boot = 500, parallel = FALSE)
+hist(k$boot_stats, breaks = 40,
+     main = "Kitagawa bootstrap distribution (Card 1995)",
+     xlab = "sqrt(n) * positive-part KS")
+abline(v = k$statistic, col = "red", lwd = 2)
+```
+
+The observed statistic (red line) sits well inside the bootstrap distribution, consistent with a non-rejection.
+
+## Combining with `modelsummary`
+
+If you have `modelsummary` installed, `iv_check` results are picked up automatically through `broom::glance` registered on package load. This lets you put a validity p-value directly in a regression table footer:
+
+```{r, eval = FALSE}
+library(modelsummary)
+modelsummary(
+  list("IV estimate" = m),
+  gof_custom = list(
+    "Kitagawa 2015 p-value" = sprintf("%.3f", k$p_value)
+  )
+)
+```
+
+## The full workflow
+
+In your paper's replication code:
+
+```{r, eval = FALSE}
+library(fixest)
+library(ivcheck)
+
+# ... data loading ...
+
+# IV estimate
+m <- feols(y ~ controls | d ~ z, data = df)
+
+# IV validity diagnostic
+chk <- iv_check(m)
+
+# Report both in the paper
+knitr::kable(chk$table)
+```
+
+Three lines of code, a falsification test the referee is almost guaranteed to ask about, and a citation-ready result. That is the whole point of `ivcheck`.
+
+## References
+
+Card, D. (1995). Using Geographic Variation in College Proximity to Estimate the Return to Schooling.
+
+Kitagawa, T. (2015). A Test for Instrument Validity. *Econometrica* 83(5): 2043-2063.
