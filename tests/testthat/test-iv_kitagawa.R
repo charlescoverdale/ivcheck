@@ -58,7 +58,7 @@ test_that("iv_kitagawa binding element is populated when statistic > 0", {
   out <- iv_kitagawa(y, d, z, n_boot = 50, parallel = FALSE)
   expect_true(is.null(out$binding) || is.list(out$binding))
   if (!is.null(out$binding)) {
-    expect_named(out$binding, c("z_low", "z_high", "d", "y"))
+    expect_named(out$binding, c("z_low", "z_high", "d", "y_lower", "y_upper"))
   }
 })
 

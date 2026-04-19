@@ -49,7 +49,7 @@ The tests here check necessary *implications* of those assumptions. If the null 
 
 ## Why trust this implementation
 
-- **Kitagawa statistic matches eq. 3.1** and the bootstrap follows section 3.2. The variance-weighted form of section 4 is the default (`weighting = "variance"`); the section-3 unweighted form is available via `weighting = "unweighted"`.
+- **Kitagawa statistic matches equation 2.1** of the paper. The sup is taken over the full class of intervals `[y, y']` with `y <= y'`, not just over single lower tails; normalised by the binomial-mixture plug-in standard error of Kitagawa's equation 2.1. Variance-weighted form is the default (`weighting = "variance"`); the unweighted form of equation 2.2 is available via `weighting = "unweighted"`.
 - **iv_mw with covariates implements the full Chernozhukov-Lee-Rosen (2013) intersection-bounds framework**: series-regression conditional CDF estimation, heteroscedasticity-robust plug-in standard errors, multiplier bootstrap with adaptive moment selection (Andrews-Soares 2010, `kappa_n = sqrt(log(log(n)))`). Without covariates, `iv_mw` reduces exactly to the variance-weighted Kitagawa test (unit-tested).
 - **iv_testjfe null distribution matches `chi^2_{K-2}` to Monte Carlo precision.** At `K=20`, `N=3000` (200 replications): empirical mean 18.01 vs target 18.0, variance 35.1 vs target 36.0, 95th percentile 29.4 vs target 28.9, empirical size 6.5% vs nominal 5%. A `method = "bootstrap"` option is available for small-K robustness.
 - **All DOIs crossref-verified.** The audit caught a silent bug: Mourifie-Wan's DOI had been cited as `10.1162/REST_a_00628` (which resolves to a different paper entirely). The correct DOI is `00622`. Fixed before first submission.

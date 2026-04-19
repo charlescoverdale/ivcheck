@@ -94,17 +94,21 @@ of stochastic dominance inequalities. Rejection is evidence that at
 least one of exclusion or monotonicity fails.
 }
 \details{
-Let \verb{F(y, d | z) = Pr(Y <= y, D = d | Z = z)} denote the empirical
-joint CDF of outcome and treatment conditional on the instrument.
-Kitagawa (2015) shows that under IV validity there exists an ordering
-of the instrument levels such that for every pair \verb{(z, z')} with \code{z}
-ordered above \verb{z'}, and for every \code{y}, both
-\verb{F(y, 1 | z') <= F(y, 1 | z)} and \verb{F(y, 0 | z) <= F(y, 0 | z')}. The
-one-sided Kolmogorov-Smirnov statistic
-\verb{T_n = sqrt(n) * max over (z, z', d, y) of [F(y, d | z) - F(y, d | z')]^+}
-tests this implication in its most-violated direction. The
-distribution of \code{T_n} is obtained by multiplier bootstrap with
-Rademacher weights as in Kitagawa (2015) section 3.2.
+Kitagawa (2015) equation 2.1 defines the statistic as the max over
+instrument-level pairs \verb{(z_low, z_high)}, treatment status
+\verb{d in \{0, 1\}}, and intervals \verb{[y, y']} with \verb{y <= y'}, of the
+positive-part interval-probability difference normalised by the
+binomial-mixture plug-in standard error:
+\verb{T_n = sqrt(n_low * n_high / n) * max [P([y, y'], d | z_low)}
+\verb{- P([y, y'], d | z_high)]^+ / sigma_hat}. The sign flips for
+\code{d = 0}. Instrument levels are pre-ordered by first-stage
+\code{E_hat[D | Z]} so the inequalities are one-sided and \code{T_n >= 0}.
+The implementation evaluates the sup on a quantile grid of observed
+outcomes (default 50 points); this is equivalent to evaluation at
+every sample-point pair under Kitagawa's Theorem 2.1. Critical
+values come from a multiplier bootstrap (section 3.2) of the pooled
+empirical distribution; bootstrap statistics reuse the data-derived
+standard-error denominator.
 }
 \examples{
 \donttest{

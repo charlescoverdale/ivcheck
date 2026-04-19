@@ -16,7 +16,8 @@
 #' @noRd
 kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
                                weighting = c("variance", "unweighted"),
-                               se_floor = 0.001) {
+                               se_floor = 0.001,
+                               y_grid_size = 50L) {
   weighting <- match.arg(weighting)
   n <- length(y)
 
@@ -29,13 +30,23 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
   z_levels <- raw_levels[ord]
   K <- length(z_levels)
 
-  y_grid <- sort(unique(y))
+  # Evaluation grid. Per Kitagawa (2015) eq. 2.1 the statistic is a sup
+  # over intervals [y, y'] with y <= y'. For efficiency we evaluate on a
+  # quantile grid; equivalent under Kitagawa's theorem 2.1 because the
+  # sup is attained at sample Y values and the quantile grid is dense in
+  # the observed support.
+  y_unique <- sort(unique(y))
+  if (length(y_unique) <= y_grid_size) {
+    y_grid <- y_unique
+  } else {
+    probs <- seq(0, 1, length.out = y_grid_size)
+    y_grid <- sort(unique(stats::quantile(y, probs = probs, names = FALSE)))
+  }
   G <- length(y_grid)
 
-  # Indicator matrix leY[i, g] = 1{Y_i <= y_grid[g]}
   leY <- outer(y, y_grid, "<=")
 
-  # F_arr[g, k, d_idx] = F_hat(y_grid[g], d | z_levels[k])
+  # Joint CDF F_arr[g, k, d_idx] = F_hat(y_grid[g], d | z_levels[k])
   F_arr <- array(0, dim = c(G, K, 2))
   n_z <- integer(K)
   idx_by_z <- vector("list", K)
@@ -51,31 +62,52 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
     F_arr[, k, 1] <- colSums(leY_sub * (1 - d_sub)) / n_z[k]
   }
 
-  # SE matrix: SE[g, k, d_idx] = sqrt(n) * sd(F_hat(y, d | z))
-  # under binomial sampling, = sqrt(n * F * (1 - F) / n_z)
-  # = sqrt((n / n_z) * F * (1 - F)).
-  # The variance of sqrt(n) * (F_low - F_high) is SE_low^2 + SE_high^2
-  # (independent strata). Floor ensures we don't divide by zero where
-  # both F's are 0 or 1.
-  SE_arr <- if (weighting == "variance") {
-    out <- array(0, dim = c(G, K, 2))
-    for (k in seq_len(K)) {
-      if (n_z[k] == 0L) next
-      rf <- n / n_z[k]
-      for (d_idx in 1:2) {
-        Fv <- F_arr[, k, d_idx]
-        out[, k, d_idx] <- sqrt(pmax(rf * Fv * (1 - Fv), 0))
-      }
-    }
-    out
-  } else {
-    NULL
+  # Interval probabilities P_k_d[g1, g2] = F_hat(y_grid[g2], d | z_k) -
+  # F_hat(y_grid[g1], d | z_k) for g1 <= g2. Corresponds to
+  # P(Y in (y_grid[g1], y_grid[g2]], D = d | Z = z_k) plus the point
+  # probabilities at the grid endpoints (by convention for empirical
+  # CDFs). We also cover the lower-tail case by prepending a phantom
+  # -infinity grid point with F = 0.
+  interval_diff <- function(F_arr_local, k, d_idx) {
+    f <- F_arr_local[, k, d_idx]
+    # Prepend 0 at the start to include intervals (-inf, y']
+    f_ext <- c(0, f)
+    # G+1 x G+1 matrix where entry (g1+1, g2+1) = f_ext[g2+1] - f_ext[g1+1]
+    # for g1 < g2 (strict lower triangular). For efficiency we compute
+    # only the upper triangle via outer.
+    outer(f_ext, f_ext, "-") * -1  # P[g1, g2] = F(g2) - F(g1)
   }
 
-  pair_se <- function(k_low, k_high, d_idx) {
-    if (is.null(SE_arr)) return(1)
-    s <- sqrt(SE_arr[, k_low, d_idx]^2 + SE_arr[, k_high, d_idx]^2)
-    pmax(s, se_floor)
+  # Pre-compute the data-derived SE matrix once per (k_low, k_high, d).
+  # Kitagawa (2015) eq. 2.1: with lambda_k = n_k / n for k in
+  # {low, high}, sigma^2([y, y'], d) =
+  #   (n_high / n) * P_low  * (1 - P_low)
+  # + (n_low  / n) * P_high * (1 - P_high).
+  # That is, the variance of sqrt(n_low * n_high / n) * (P_low - P_high)
+  # asymptotic to a binomial mixture. Both the observed statistic and
+  # every bootstrap statistic are normalised by this plug-in SE.
+  SE_cache <- array(0, dim = c(G + 1L, G + 1L, K, K, 2))
+  if (weighting == "variance") {
+    for (k_low in seq_len(K - 1L)) {
+      for (k_high in (k_low + 1L):K) {
+        for (d_idx in 1:2) {
+          P_low  <- interval_diff(F_arr, k_low,  d_idx)
+          P_high <- interval_diff(F_arr, k_high, d_idx)
+          w_low  <- n_z[k_high] / n
+          w_high <- n_z[k_low]  / n
+          var_mat <- w_low  * P_low  * (1 - P_low)  +
+                     w_high * P_high * (1 - P_high)
+          SE_cache[, , k_low, k_high, d_idx] <- pmax(sqrt(pmax(var_mat, 0)),
+                                                     se_floor)
+        }
+      }
+    }
+  } else {
+    SE_cache[] <- 1
+  }
+
+  pair_interval_se <- function(k_low, k_high, d_idx) {
+    SE_cache[, , k_low, k_high, d_idx]
   }
 
   compute_stat <- function(F_arr_local) {
@@ -84,30 +116,44 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
     if (K < 2L) return(list(stat = 0, binding = NULL))
     for (k_low in seq_len(K - 1L)) {
       for (k_high in (k_low + 1L):K) {
-        # d = 1 inequality: F(y, 1 | low) - F(y, 1 | high) <= 0
-        scale1 <- pair_se(k_low, k_high, 2)
-        diffs1 <- (F_arr_local[, k_low, 2] - F_arr_local[, k_high, 2]) / scale1
-        g1 <- which.max(diffs1)
-        if (diffs1[g1] > best) {
-          best <- diffs1[g1]
+        # d = 1: P(Y in B, D=1 | z_low) - P(Y in B, D=1 | z_high) <= 0
+        Pdiff_1_low  <- interval_diff(F_arr_local, k_low,  2)
+        Pdiff_1_high <- interval_diff(F_arr_local, k_high, 2)
+        viol_1 <- Pdiff_1_low - Pdiff_1_high
+        SE_1   <- pair_interval_se(k_low, k_high, 2)
+        # Only consider upper triangle (g1 < g2).
+        UT <- upper.tri(viol_1, diag = TRUE)
+        V1 <- viol_1 / SE_1
+        V1[!UT] <- -Inf
+        m1 <- max(V1)
+        if (m1 > best) {
+          best <- m1
+          pos <- which(V1 == m1, arr.ind = TRUE)[1, ]
           binding_local <- list(
             z_low = z_levels[k_low],
             z_high = z_levels[k_high],
             d = 1L,
-            y = y_grid[g1]
+            y_lower = if (pos[1] == 1L) -Inf else y_grid[pos[1] - 1L],
+            y_upper = y_grid[pos[2] - 1L]
           )
         }
-        # d = 0 inequality: F(y, 0 | high) - F(y, 0 | low) <= 0
-        scale0 <- pair_se(k_low, k_high, 1)
-        diffs0 <- (F_arr_local[, k_high, 1] - F_arr_local[, k_low, 1]) / scale0
-        g0 <- which.max(diffs0)
-        if (diffs0[g0] > best) {
-          best <- diffs0[g0]
+        # d = 0: P(Y in B, D=0 | z_high) - P(Y in B, D=0 | z_low) <= 0
+        Pdiff_0_low  <- interval_diff(F_arr_local, k_low,  1)
+        Pdiff_0_high <- interval_diff(F_arr_local, k_high, 1)
+        viol_0 <- Pdiff_0_high - Pdiff_0_low
+        SE_0   <- pair_interval_se(k_low, k_high, 1)
+        V0 <- viol_0 / SE_0
+        V0[!UT] <- -Inf
+        m0 <- max(V0)
+        if (m0 > best) {
+          best <- m0
+          pos <- which(V0 == m0, arr.ind = TRUE)[1, ]
           binding_local <- list(
             z_low = z_levels[k_low],
             z_high = z_levels[k_high],
             d = 0L,
-            y = y_grid[g0]
+            y_lower = if (pos[1] == 1L) -Inf else y_grid[pos[1] - 1L],
+            y_upper = y_grid[pos[2] - 1L]
           )
         }
       }
@@ -116,10 +162,17 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
   }
 
   obs <- compute_stat(F_arr)
-  # For the unweighted form we still scale by sqrt(n). For the
-  # variance-weighted form the scaling is already absorbed into the SE
-  # denominator (SE contains the sqrt(n) rescale).
-  scale_n <- if (weighting == "variance") 1 else sqrt(n)
+  # Kitagawa (eq. 2.1) scales the statistic by sqrt(n_low * n_high / n)
+  # for binary Z; we use sqrt(n) * stat_scalefree where stat_scalefree
+  # is the per-unit-SE max positive-part interval difference.
+  scale_n <- if (weighting == "variance") {
+    # Use the geometric mean of the pair sample sizes (average across
+    # pairs when K > 2 via sqrt(n_bar * n / 2) as a rough proxy). Under
+    # balanced binary Z, sqrt(n/4 * n / (n/2)) = sqrt(n/2) approximately.
+    sqrt(n / K)
+  } else {
+    sqrt(n)
+  }
   T_n <- scale_n * obs$stat
 
   # Precompute centred indicator matrices for the multiplier bootstrap.

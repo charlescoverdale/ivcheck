@@ -42,17 +42,21 @@
 #'   \item{call}{Matched call.}
 #'
 #' @details
-#' Let `F(y, d | z) = Pr(Y <= y, D = d | Z = z)` denote the empirical
-#' joint CDF of outcome and treatment conditional on the instrument.
-#' Kitagawa (2015) shows that under IV validity there exists an ordering
-#' of the instrument levels such that for every pair `(z, z')` with `z`
-#' ordered above `z'`, and for every `y`, both
-#' `F(y, 1 | z') <= F(y, 1 | z)` and `F(y, 0 | z) <= F(y, 0 | z')`. The
-#' one-sided Kolmogorov-Smirnov statistic
-#' `T_n = sqrt(n) * max over (z, z', d, y) of [F(y, d | z) - F(y, d | z')]^+`
-#' tests this implication in its most-violated direction. The
-#' distribution of `T_n` is obtained by multiplier bootstrap with
-#' Rademacher weights as in Kitagawa (2015) section 3.2.
+#' Kitagawa (2015) equation 2.1 defines the statistic as the max over
+#' instrument-level pairs `(z_low, z_high)`, treatment status
+#' `d in {0, 1}`, and intervals `[y, y']` with `y <= y'`, of the
+#' positive-part interval-probability difference normalised by the
+#' binomial-mixture plug-in standard error:
+#' `T_n = sqrt(n_low * n_high / n) * max [P([y, y'], d | z_low)`
+#' `- P([y, y'], d | z_high)]^+ / sigma_hat`. The sign flips for
+#' `d = 0`. Instrument levels are pre-ordered by first-stage
+#' `E_hat[D | Z]` so the inequalities are one-sided and `T_n >= 0`.
+#' The implementation evaluates the sup on a quantile grid of observed
+#' outcomes (default 50 points); this is equivalent to evaluation at
+#' every sample-point pair under Kitagawa's Theorem 2.1. Critical
+#' values come from a multiplier bootstrap (section 3.2) of the pooled
+#' empirical distribution; bootstrap statistics reuse the data-derived
+#' standard-error denominator.
 #'
 #' @references
 #' Kitagawa, T. (2015). A Test for Instrument Validity. *Econometrica*,

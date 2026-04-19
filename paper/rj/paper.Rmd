@@ -36,7 +36,7 @@ output:
 
 The \CRANpkg{ivcheck} package provides falsification tests of the identifying assumptions behind instrumental variable (IV) estimation of the local average treatment effect (LATE). It implements three tests from the econometric literature [@kitagawa2015; @mourifie2017; @frandsen2023], each with S3 methods for fitted \CRANpkg{fixest} and \CRANpkg{ivreg} model objects, plus a wrapper that runs every applicable test on a single fitted model.
 
-Applied IV practice has a tooling gap. The identifying assumptions of the Imbens and Angrist [-@imbens1994] LATE framework, the local exclusion restriction and monotonicity, are routinely defended by hand-wave rather than tested, despite each having testable implications derived in the methodological literature since 2015. The reason is not conviction but distribution: Kitagawa's [-@kitagawa2015] test was released with supplementary Matlab code on the author's website; Mourifie and Wan's [-@mourifie2017] reformulation relies on the Chernozhukov-Lee-Rosen [-@chernozhukov2013] `clrtest` Stata module; Frandsen, Lefgren, and Leslie [-@frandsen2023] ship a Stata SSC module `testjfe`. None of the three has existed as a maintained R package until now.
+Applied IV practice has a tooling gap. The identifying assumptions of the Imbens and Angrist [-@imbens1994] LATE framework, the local exclusion restriction and monotonicity, are routinely defended by hand-wave rather than tested, despite each having testable implications derived in the methodological literature since 2015. The reason is not conviction but distribution: Kitagawa's [-@kitagawa2015] test was released with supplementary Matlab code on the author's website; Mourifie and Wan's [-@mourifie2017] reformulation relies on the Chernozhukov-Lee-Rosen [-@chernozhukov2013] `clrtest` Stata module; Frandsen, Lefgren, and Leslie [-@frandsen2023] ship a Stata SSC module `testjfe`. None of the three has existed as a maintained R package until now. The adjacent \CRANpkg{ivDiag} [@lal2024] covers weak-instrument diagnostics (effective F, Anderson-Rubin, valid-t, local-to-zero) but does not implement LATE-validity tests; the R ecosystem has lacked a counterpart to that package for the falsification-test family.
 
 \CRANpkg{ivcheck} closes that gap. The package has three functional commitments. First, each test is a named R function (`iv_kitagawa`, `iv_mw`, `iv_testjfe`) that accepts either raw `(y, d, z)` vectors or a fitted IV model through S3 dispatch. Second, the implementations are faithful to the published forms: Kitagawa's variance-weighted Kolmogorov-Smirnov statistic from section 4 of the paper, the full Chernozhukov-Lee-Rosen intersection-bounds inference with Andrews-Soares [-@andrews2010] adaptive moment selection for the conditional Mourifie-Wan test, and the asymptotic chi-squared form of Frandsen-Lefgren-Leslie extended to multivalued treatment per section 4 of that paper. Third, a one-shot `iv_check` wrapper detects which tests are applicable from the structure of a fitted IV model and runs them, producing a tidy summary ready for inclusion in a paper's appendix.
 
@@ -78,18 +78,21 @@ All three tests share a multiplier-bootstrap core. Rademacher weights are the de
 
 ### Statistic and bootstrap
 
-`iv_kitagawa` implements the variance-weighted Kolmogorov-Smirnov statistic of @kitagawa2015 section 4. Let `F_hat(y, d | z)` denote the empirical joint CDF of outcome and treatment conditional on the instrument, and let `z_L(z_H)` denote the pair of instrument levels whose first-stage propensities `E_hat[D | Z]` are lowest (highest). The testable null implies, for every pair `(z_L, z_H)` and every `y`, both `F(y, 1 | z_L) <= F(y, 1 | z_H)` and `F(y, 0 | z_H) <= F(y, 0 | z_L)`. The studentised one-sided violation is
+`iv_kitagawa` implements the variance-weighted Kolmogorov-Smirnov statistic of @kitagawa2015 equation 2.1. For each pair `(z_L, z_H)` of instrument levels pre-ordered by first-stage `E_hat[D | Z]`, and for each `d in {0, 1}`, the testable null implies that the interval-probability difference `P([y, y'], d | Z = z_L) - P([y, y'], d | Z = z_H)` is non-positive for every `y <= y'` (with the sign reversed for `d = 0`). Kitagawa's studentised statistic is
 
 \begin{equation}
-T_n = \max_{(z_L, z_H, d, y)} \; \frac{\sqrt{n} \, [F_{\text{hat}}(y, d \mid z_L) - F_{\text{hat}}(y, d \mid z_H)]^{+}}{\hat{\sigma}(y; d, z_L, z_H)},
+T_n \;=\; \sqrt{\tfrac{n_L n_H}{n}}
+\max_{(z_L, z_H, d)} \;
+\sup_{y \le y'}
+\frac{\bigl[\Delta F_{\text{hat}}(y, y'; d, z_L, z_H)\bigr]^{+}}{\hat{\sigma}(y, y'; d, z_L, z_H) \vee \xi},
 \label{eq:kitagawa}
 \end{equation}
 
-where the sign convention switches for `d = 0` and `sigma_hat` is the plug-in standard error estimator. Critical values come from a multiplier bootstrap with Rademacher weights (Kitagawa 2015, section 3.2), with the bootstrap process reusing the data-derived standard-error denominator. Pairs of instrument levels are pre-ordered by first-stage `E_hat[D | Z]`, so the inequalities are one-sided and the statistic is strictly non-negative.
+where `Delta F_hat` is the signed interval-probability difference, `sigma_hat` is the plug-in binomial-mixture standard error with mixture weights matching Kitagawa's equation 2.1, and `xi` is a small positive trimming constant that floors the denominator on intervals with vanishing estimated variance. Pairs are pre-ordered so the inequalities are one-sided and the statistic is strictly non-negative. Critical values come from a multiplier bootstrap: for each replication, resampled subsamples from the pooled empirical distribution produce a bootstrap analogue of `Delta F_hat` normalised by the same data-derived standard error. The bootstrap p-value is the fraction of replications whose statistic exceeds `T_n`.
 
-### Fidelity to the paper
+### Implementation
 
-The `weighting` argument selects the variance-weighted form of section 4 (default) or the unweighted form of section 3 (`weighting = "unweighted"`). The two are asymptotically equivalent at the null boundary; the weighted form has better finite-sample power when instrument cells have unequal sizes.
+The supremum over `(y, y')` is computed on a quantile grid of observed outcomes (default 50 points), which is equivalent to evaluation at every sample-point pair up to Monte Carlo error under Kitagawa's Theorem 2.1. The `weighting` argument selects the variance-weighted form of equation 2.1 (default) or the unweighted form of equation 2.2 (`weighting = "unweighted"`). The two are asymptotically equivalent under the null boundary; the weighted form has better finite-sample power when instrument cells have unequal sizes.
 
 ### Card (1995) illustration
 
@@ -120,14 +123,16 @@ The user-facing arguments control the grid density (`x_grid_size`, `y_grid_size`
 
 ### Statistic for binary treatment
 
-`iv_testjfe` implements the Frandsen-Lefgren-Leslie [-@frandsen2023] test for designs with a binary treatment and an instrument consisting of mutually exclusive dummy variables (the leniency-of-assigned-judge design). Under the joint null, each pair of judges `(j, k)` identifies the same complier LATE via the Wald estimator `(mu_j - mu_k) / (p_j - p_k)`, where `mu_j = E[Y | J = j]` and `p_j = E[D | J = j]`. The test is the overidentification test that all pairwise LATEs agree. Under binary treatment with weighted-least-squares fitting, that is algebraically the weighted sum of squared residuals from the linear fit `mu_j = alpha + beta * p_j`, divided by a pooled variance estimator:
+`iv_testjfe` implements the asymptotic form of the Frandsen-Lefgren-Leslie [-@frandsen2023] test for designs with a binary treatment and an instrument consisting of mutually exclusive dummy variables (the leniency-of-assigned-judge design). Under the joint null, the Wald estimator `(mu_j - mu_k) / (p_j - p_k)` identifies the same complier LATE for every pair of judges `(j, k)`, where `mu_j = E[Y | J = j]` and `p_j = E[D | J = j]`. Under binary treatment, the overidentification test that all pairwise LATEs agree is algebraically the weighted-least-squares test that `mu_j = alpha + beta * p_j` holds, divided by a pooled structural-residual variance estimator:
 
 \begin{equation}
-T_n \;=\; \frac{\sum_{j} n_j \, \bigl(\mu_j - \hat\alpha - \hat\beta \, p_j\bigr)^2}{\hat\sigma^2} \;\sim\; \chi^2_{K - 2}
+T_n \;=\; \frac{\sum_{j} n_j \, \bigl(\mu_j - \hat\alpha - \hat\beta \, p_j\bigr)^2}{\hat\sigma^2}, \qquad \hat\sigma^2 \;=\; \frac{1}{n - K}\sum_j \sum_{i: J_i = j} (y_i - \hat\alpha - \hat\beta d_i - \bar u_j)^2,
 \label{eq:fll}
 \end{equation}
 
-under the asymptotic null, where `K` is the number of judges. The `method = "bootstrap"` option uses a multiplier bootstrap on the restricted-residual process for small-K robustness.
+where `bar u_j` is the within-judge mean of the structural residuals and the reference distribution is `chi^2_{K - 2}`. Using structural residuals rather than within-judge variance of `y` removes the first-stage binomial contribution of `D`, which otherwise inflates `sigma^2` by approximately `1 + p(1 - p)` relative to the correct denominator.
+
+The `method = "bootstrap"` option replaces the chi-squared reference with a multiplier bootstrap of the restricted-residual process for small-`K` robustness. This is a simplification of the full @frandsen2023 test, which uses a flexible polynomial or spline specification for the outcome-propensity relationship and the Andrews-Soares [-@andrews2010] moment-inequality procedure for the bounded-slope restriction. The chi-squared linearity test implemented here is the special case of their asymptotic form with `phi(p) = alpha + beta * p` (linear specification) and without the bounded-slope constraint.
 
 ### Multivalued treatment
 
@@ -203,14 +208,15 @@ Figure \ref{fig:pairwise} shows the pairwise Wald LATE matrix for the violation 
 
 ## Limitations
 
-Six limitations apply.
+Seven limitations apply.
 
 1. \CRANpkg{ivcheck} is a testing package, not an estimator. Use \CRANpkg{fixest} or \CRANpkg{ivreg} for the IV estimation itself; \CRANpkg{ivcheck} operates on the fitted model or on raw vectors.
 2. Version 0.1.0 supports discrete instruments only. Continuous `Z` must be discretised into bins before passing to `iv_kitagawa` or `iv_mw`. A continuous-`Z` extension [@kitagawa2022] is on the v0.2.0 roadmap.
 3. `iv_kitagawa` and `iv_mw` assume binary `D`. Multivalued treatment is supported in `iv_testjfe` via the Frandsen-Lefgren-Leslie section 4 extension; a multivalued extension of Kitagawa [@sun2023] is a v0.2.0 priority.
 4. Survey weights are a v0.2.0 priority. The `weights` argument is reserved in every test function but not yet implemented.
 5. Fuzzy regression discontinuity has a dedicated test [@arai2022] that is not yet in \CRANpkg{ivcheck}.
-6. Rejection of any of the three tests is evidence of violation but does not localise the failed assumption. Non-rejection is evidence of no detectable violation at level `alpha`, not proof of validity. Report non-rejection as such.
+6. `iv_testjfe` implements the asymptotic chi-squared linearity test that corresponds to the @frandsen2023 statistic under a linear outcome-propensity specification. The full flexible-series test with the bounded-slope moment-inequality restriction is planned for v0.2.0. Users needing the published test with the flexible basis should run Frandsen's Stata `testjfe` module in the interim.
+7. Rejection of any of the three tests is evidence of violation but does not localise the failed assumption. Non-rejection is evidence of no detectable violation at level `alpha`, not proof of validity. Report non-rejection as such.
 
 ## Conclusion
 

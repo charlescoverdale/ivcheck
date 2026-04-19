@@ -5,6 +5,7 @@
 ^cran-comments\.md$
 ^LICENSE\.md$
 ^data-raw$
+^paper$
 ^\.gitignore$
 ^\.git$
 ^\.DS_Store$
