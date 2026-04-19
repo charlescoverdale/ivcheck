@@ -14,6 +14,7 @@ iv_mw(object, ...)
   d,
   z,
   x = NULL,
+  n_bins = 5L,
   grid = NULL,
   n_boot = 1000,
   alpha = 0.05,
@@ -25,6 +26,7 @@ iv_mw(object, ...)
 \method{iv_mw}{fixest}(
   object,
   x = NULL,
+  n_bins = 5L,
   grid = NULL,
   n_boot = 1000,
   alpha = 0.05,
@@ -36,6 +38,7 @@ iv_mw(object, ...)
 \method{iv_mw}{ivreg}(
   object,
   x = NULL,
+  n_bins = 5L,
   grid = NULL,
   n_boot = 1000,
   alpha = 0.05,
@@ -55,11 +58,16 @@ model from \link[fixest:feols]{fixest::feols} or \code{ivreg::ivreg()}.}
 
 \item{z}{Discrete instrument (numeric or factor, default method only).}
 
-\item{x}{Optional numeric matrix or data frame of covariates. If
-supplied, the test is conditional on \code{x}.}
+\item{x}{Optional numeric vector, matrix, or data frame of covariates.
+If supplied, the test is stratified by quantile bins of the first
+numeric column of \code{x}. If \code{NULL}, the test reduces to the
+unconditional Mourifie-Wan test.}
 
-\item{grid}{Optional numeric grid of outcome values at which to
-evaluate the inequalities. If \code{NULL}, a data-adaptive grid is used.}
+\item{n_bins}{Number of quantile bins of \code{x}. Default 5. Ignored when
+\code{x} is \code{NULL}.}
+
+\item{grid}{Reserved. Custom outcome-evaluation grid for the CLR-style
+inference in v0.2.0.}
 
 \item{n_boot}{Number of multiplier-bootstrap replications. Default 1000.}
 
@@ -73,15 +81,28 @@ POSIX systems via \link[parallel:mclapply]{parallel::mclapply}. Default \code{TR
 }
 \value{
 An object of class \code{iv_test}; see \link{iv_kitagawa} for element
-descriptions. Additionally:
+descriptions. Additional elements:
 \item{conditional}{Logical, whether covariates were supplied.}
+\item{n_bins}{Number of x-bins used when \code{conditional} is \code{TRUE}.}
 }
 \description{
 Reformulates the testable implications of Kitagawa (2015) as a set of
-conditional moment inequalities and tests them in the intersection-
-bounds framework of Chernozhukov, Lee, and Rosen (2013). Unlike
-\link{iv_kitagawa}, \code{iv_mw} accepts covariates \code{x} and tests conditional
-on them.
+conditional moment inequalities. Without covariates \code{x}, \code{iv_mw} tests
+the same inequalities as \code{iv_kitagawa} and uses the same multiplier-
+bootstrap critical values (the two tests are asymptotically equivalent
+at the boundary of the null). With covariates, \code{iv_mw} stratifies the
+sample by quantile bins of \code{x}, runs the inequality test within each
+bin, and takes the max statistic across bins with a jointly-drawn
+multiplier bootstrap.
+}
+\details{
+This is a first-pass implementation of Mourifie-Wan (2017). The
+unconditional path is exact. The conditional path uses a simple bin-
+stratified version that preserves the spirit of the CLR (2013)
+intersection-bounds framework without yet implementing the full
+Chernozhukov-Lee-Rosen inference. A v0.2.0 release will add the full
+CLR machinery; users needing that today should consult the Stata
+implementation accompanying the CLR (2015) paper.
 }
 \examples{
 \donttest{
@@ -90,7 +111,7 @@ n <- 500
 z <- sample(0:1, n, replace = TRUE)
 d <- rbinom(n, 1, 0.3 + 0.4 * z)
 y <- rnorm(n, mean = d)
-iv_mw(y, d, z, n_boot = 200)
+iv_mw(y, d, z, n_boot = 200, parallel = FALSE)
 }
 
 }

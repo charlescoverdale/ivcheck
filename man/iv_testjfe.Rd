@@ -54,7 +54,9 @@ model from \link[fixest:feols]{fixest::feols} or \code{ivreg::ivreg()}.}
 \item{z}{Factor, integer, or matrix of mutually exclusive dummy
 variables identifying the judge (or other random-assignment unit).}
 
-\item{x}{Optional covariates to condition on.}
+\item{x}{Optional numeric vector, matrix, or data frame of covariates.
+If supplied, \code{y} and \code{d} are residualised on \code{x} before the per-
+judge means are computed.}
 
 \item{n_boot}{Number of multiplier-bootstrap replications. Default 1000.}
 
@@ -68,23 +70,39 @@ POSIX systems via \link[parallel:mclapply]{parallel::mclapply}. Default \code{TR
 }
 \value{
 An object of class \code{iv_test}; see \link{iv_kitagawa} for element
-descriptions.
+descriptions. Additional elements:
+\item{n_judges}{Number of distinct judges / assignment groups.}
+\item{coef}{Fitted weighted-LS slope and intercept of \code{mu_j} on \code{p_j}.}
 }
 \description{
 Jointly tests the local exclusion and monotonicity assumptions when
 treatment is binary and the instruments are a set of mutually
 exclusive dummy variables (the leniency-of-assigned-judge design).
-Rejection is evidence that at least one of exclusion or monotonicity
-fails.
+Under the joint null, the per-judge mean outcome \verb{mu_j = E[Y | J = j]}
+must be a linear function of the per-judge treatment propensity
+\verb{p_j = E[D | J = j]}. Rejection is evidence that at least one of
+exclusion or monotonicity fails.
+}
+\details{
+This is a simplified first-pass implementation. It tests the linearity
+implication of the FLL (2023) joint null using a weighted-LS fit of
+\code{mu_j} on \code{p_j} and a chi-squared asymptotic distribution for the
+weighted sum of squared residuals (degrees of freedom equal to the
+number of judges minus two). The full nonparametric restricted-LS
+test of Frandsen, Lefgren, and Leslie (2023), which handles the
+case of many small judge cells and generalises to multivalued
+treatment, is planned for v0.2.0. Users needing the published test
+today should consult the Stata \code{testjfe} module (Frandsen, BYU,
+2020).
 }
 \examples{
 \donttest{
 set.seed(1)
-n <- 1000
+n <- 2000
 judge <- sample.int(20, n, replace = TRUE)
 d <- rbinom(n, 1, 0.3 + 0.02 * judge)
 y <- rnorm(n, mean = d)
-iv_testjfe(y, d, judge, n_boot = 200)
+iv_testjfe(y, d, judge, n_boot = 200, parallel = FALSE)
 }
 
 }
