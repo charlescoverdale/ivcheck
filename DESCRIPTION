@@ -1,0 +1,36 @@
+Package: ivcheck
+Title: Tests for Instrumental Variable Validity
+Version: 0.1.0
+Authors@R:
+    person("Charles", "Coverdale", , "charlesfcoverdale@gmail.com", role = c("aut", "cre"))
+Description: Implements tests for the identifying assumptions of
+    instrumental variable models, the local exclusion restriction and
+    monotonicity conditions required for local average treatment effect
+    identification. Covers Kitagawa (2015) <doi:10.3982/ECTA11974>,
+    Mourifie and Wan (2017) <doi:10.1162/REST_a_00628>, and Frandsen,
+    Lefgren, and Leslie (2023) <doi:10.1257/aer.20201860>. Includes a
+    one-shot wrapper that runs all applicable tests on a fitted
+    instrumental variable model. Dispatches on 'fixest' and 'ivreg'
+    model objects.
+Depends: R (>= 4.1.0)
+License: MIT + file LICENSE
+Encoding: UTF-8
+Language: en-US
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Imports:
+    cli (>= 3.6.0),
+    stats,
+    parallel
+Suggests:
+    testthat (>= 3.0.0),
+    fixest,
+    ivreg,
+    modelsummary,
+    broom,
+    spelling,
+    knitr,
+    rmarkdown
+Config/testthat/edition: 3
+URL: https://github.com/charlescoverdale/ivcheck
+BugReports: https://github.com/charlescoverdale/ivcheck/issues
