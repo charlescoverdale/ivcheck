@@ -12,15 +12,17 @@ iv_power(
   alpha = 0.05,
   n_sims = 500,
   delta_grid = NULL,
+  n_boot = 200,
+  parallel = TRUE,
   ...
 )
 }
 \arguments{
-\item{y, d, z}{Observed data used to anchor the DGP (marginal
-distributions, cell counts).}
+\item{y, d, z}{Observed data used to anchor the DGP (sample size, cell
+counts, empirical first-stage).}
 
 \item{method}{Which test to benchmark. One of \code{"kitagawa"}, \code{"mw"},
-\code{"testjfe"}.}
+or \code{"testjfe"}.}
 
 \item{alpha}{Significance level.}
 
@@ -29,30 +31,45 @@ distributions, cell counts).}
 \item{delta_grid}{Numeric vector of deviation sizes to evaluate.
 If \code{NULL}, defaults to \code{seq(0, 0.3, by = 0.05)}.}
 
+\item{n_boot}{Number of bootstrap replications per simulation (for
+tests that use bootstrap). Default 200, which trades some Monte
+Carlo noise for tractable runtime.}
+
+\item{parallel}{Logical. Run simulations in parallel on POSIX systems
+via \link[parallel:mclapply]{parallel::mclapply}. Default \code{TRUE}.}
+
 \item{...}{Further arguments passed to the underlying test.}
 }
 \value{
-A data frame with columns \code{delta} and \code{power} (estimated
-rejection probability).
+A data frame with columns \code{delta} (deviation size) and
+\code{power} (estimated rejection probability at level \code{alpha}).
 }
 \description{
 Simulates data under a user-specified deviation from validity and
 estimates the rejection probability of the chosen test at each
 deviation size. Useful for sample-size planning and for benchmarking
-different tests on the same DGP.
+different tests on the same design.
 }
 \details{
-The deviation is parametrised as the share of the population that
-violates monotonicity (defiers) relative to the share of compliers.
-A deviation of 0 corresponds to the null; larger values correspond to
-greater violations.
+The deviation is parameterised as the size of a \strong{D-specific direct
+effect of the instrument on the outcome} (a clean exclusion
+violation that the Kitagawa and Mourifie-Wan tests are designed to
+detect). Specifically, the simulated outcome is
+\code{Y = mu_hat[D + 1] + delta * sigma_hat * D * (Z - Z_low) + noise},
+so \code{delta = 0} corresponds to the null and larger values produce
+larger violations of the testable inequality for the d = 1 cells.
+The simulator preserves the observed sample size, first-stage
+propensities, and outcome scale.
 }
 \examples{
 \dontrun{
 # Headline power curve for a small-N design
 set.seed(1)
-y <- rnorm(300); d <- rbinom(300, 1, 0.5); z <- sample(0:1, 300, TRUE)
-iv_power(y, d, z, method = "kitagawa", n_sims = 50)
+n <- 300
+z <- sample(0:1, n, replace = TRUE)
+d <- rbinom(n, 1, 0.3 + 0.4 * z)
+y <- rnorm(n, mean = d)
+iv_power(y, d, z, method = "kitagawa", n_sims = 50, n_boot = 100)
 }
 
 }

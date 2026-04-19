@@ -23,17 +23,39 @@ extract_iv_data.fixest <- function(object) {
   }
   if (!isTRUE(object$iv)) {
     cli::cli_abort(
-      "Model is not an IV model. Use {.code feols(y ~ x | d ~ z, data)} syntax."
+      c(
+        "Model is not an IV model.",
+        i = "Use {.code feols(y ~ x | d ~ z, data)} syntax to fit an IV model."
+      )
     )
   }
-  # Placeholder extraction. Full implementation wired up once we have
-  # a test case; fixest exposes endogenous/instrument model frames via
-  # its accessor methods.
+  endo_names <- object$iv_endo_names
+  inst_names <- object$iv_inst_names
+  if (length(endo_names) != 1L) {
+    cli::cli_abort(
+      "{.fn ivcheck} v0.1.0 supports exactly one endogenous treatment; model has {length(endo_names)}."
+    )
+  }
+  # Recover y, d, z without relying on the call environment.
+  y <- as.numeric(stats::model.matrix(object, type = "lhs"))
+  fs <- object$iv_first_stage[[1]]
+  d <- as.numeric(stats::fitted(fs) + stats::residuals(fs))
+  mm_fs <- stats::model.matrix(fs)
+  # The first stage's model.matrix has exogenous X columns plus the
+  # instruments. Extract the instruments by name.
+  z_cols <- intersect(inst_names, colnames(mm_fs))
+  if (length(z_cols) == 0L) {
+    cli::cli_abort(
+      "Could not locate instrument {.val {inst_names}} in the first-stage design matrix."
+    )
+  }
+  z <- if (length(z_cols) == 1L) mm_fs[, z_cols] else mm_fs[, z_cols]
+  x_cols <- setdiff(colnames(mm_fs), c("(Intercept)", inst_names))
   list(
-    y = NULL,
-    d = NULL,
-    z = NULL,
-    x = NULL
+    y = y,
+    d = d,
+    z = z,
+    x = if (length(x_cols) > 0L) mm_fs[, x_cols, drop = FALSE] else NULL
   )
 }
 
@@ -42,11 +64,19 @@ extract_iv_data.ivreg <- function(object) {
   if (!requireNamespace("ivreg", quietly = TRUE)) {
     cli::cli_abort("Package {.pkg ivreg} is required for this method.")
   }
-  # Placeholder extraction.
+  endo_names <- names(object$endogenous)
+  inst_names <- names(object$instruments)
+  exog_names <- setdiff(names(object$exogenous), "(Intercept)")
+  if (length(endo_names) != 1L) {
+    cli::cli_abort(
+      "{.fn ivcheck} v0.1.0 supports exactly one endogenous treatment; model has {length(endo_names)}."
+    )
+  }
+  mf <- object$model
   list(
-    y = NULL,
-    d = NULL,
-    z = NULL,
-    x = NULL
+    y = as.numeric(object$y),
+    d = mf[[endo_names]],
+    z = if (length(inst_names) == 1L) mf[[inst_names]] else mf[, inst_names],
+    x = if (length(exog_names) > 0L) as.matrix(mf[, exog_names, drop = FALSE]) else NULL
   )
 }
