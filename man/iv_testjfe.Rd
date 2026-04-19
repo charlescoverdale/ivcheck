@@ -60,7 +60,8 @@ variables identifying the judge (or other random-assignment unit).}
 
 \item{alpha}{Significance level for the returned verdict. Default 0.05.}
 
-\item{weights}{Optional survey weights. If \code{NULL}, unweighted.}
+\item{weights}{Optional survey weights. Not yet implemented; reserved
+for v0.2.0.}
 
 \item{parallel}{Logical. Run bootstrap replications in parallel on
 POSIX systems via \link[parallel:mclapply]{parallel::mclapply}. Default \code{TRUE}.}

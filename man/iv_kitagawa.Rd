@@ -53,7 +53,8 @@ model from \link[fixest:feols]{fixest::feols} or \code{ivreg::ivreg()}.}
 
 \item{alpha}{Significance level for the returned verdict. Default 0.05.}
 
-\item{weights}{Optional survey weights. If \code{NULL}, unweighted.}
+\item{weights}{Optional survey weights. Not yet implemented; reserved
+for v0.2.0.}
 
 \item{parallel}{Logical. Run bootstrap replications in parallel on
 POSIX systems via \link[parallel:mclapply]{parallel::mclapply}. Default \code{TRUE}.}
@@ -61,13 +62,14 @@ POSIX systems via \link[parallel:mclapply]{parallel::mclapply}. Default \code{TR
 \value{
 An object of class \code{iv_test} with elements:
 \item{test}{Character, always \code{"Kitagawa (2015)"}.}
-\item{statistic}{Numeric test statistic (variance-weighted
-Kolmogorov-Smirnov).}
+\item{statistic}{Numeric test statistic (Kolmogorov-Smirnov
+positive-part, scaled by sqrt(n)).}
 \item{p_value}{Bootstrap p-value.}
 \item{alpha}{Supplied significance level.}
 \item{n_boot}{Number of bootstrap replications used.}
 \item{boot_stats}{Numeric vector of bootstrap test statistics.}
-\item{binding}{The (z, z') pair giving the binding inequality.}
+\item{binding}{List identifying the binding \verb{(z, z', d, y)}
+configuration of the observed statistic.}
 \item{n}{Sample size.}
 \item{call}{Matched call.}
 }
@@ -75,19 +77,33 @@ Kolmogorov-Smirnov).}
 Tests the joint implication of the local exclusion restriction and the
 local monotonicity condition in a binary-treatment, discrete-instrument
 setting. The null hypothesis is that the instrument is valid. Under the
-null, the conditional densities of the outcome given treatment status,
-evaluated at each level of the instrument, must satisfy a set of
-stochastic dominance inequalities. Rejection is evidence that at least
-one of exclusion or monotonicity fails.
+null, the conditional distributions of the outcome given treatment
+status, evaluated at each level of the instrument, must satisfy a set
+of stochastic dominance inequalities. Rejection is evidence that at
+least one of exclusion or monotonicity fails.
+}
+\details{
+Let \verb{F(y, d | z) = Pr(Y <= y, D = d | Z = z)} denote the empirical
+joint CDF of outcome and treatment conditional on the instrument.
+Kitagawa (2015) shows that under IV validity there exists an ordering
+of the instrument levels such that for every pair \verb{(z, z')} with \code{z}
+ordered above \verb{z'}, and for every \code{y}, both
+\verb{F(y, 1 | z') <= F(y, 1 | z)} and \verb{F(y, 0 | z) <= F(y, 0 | z')}. The
+one-sided Kolmogorov-Smirnov statistic
+\verb{T_n = sqrt(n) * max over (z, z', d, y) of [F(y, d | z) - F(y, d | z')]^+}
+tests this implication in its most-violated direction. The
+distribution of \code{T_n} is obtained by multiplier bootstrap with
+Rademacher weights as in Kitagawa (2015) section 3.2.
 }
 \examples{
 \donttest{
+# Valid IV: compliers exist, no violations
 set.seed(1)
 n <- 500
 z <- sample(0:1, n, replace = TRUE)
 d <- rbinom(n, 1, 0.3 + 0.4 * z)
 y <- rnorm(n, mean = d)
-iv_kitagawa(y, d, z, n_boot = 200)
+iv_kitagawa(y, d, z, n_boot = 200, parallel = FALSE)
 }
 
 }
