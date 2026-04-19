@@ -17,6 +17,7 @@ iv_testjfe(object, ...)
   x = NULL,
   n_boot = 1000,
   alpha = 0.05,
+  method = c("asymptotic", "bootstrap"),
   weights = NULL,
   parallel = TRUE,
   ...
@@ -27,6 +28,7 @@ iv_testjfe(object, ...)
   x = NULL,
   n_boot = 1000,
   alpha = 0.05,
+  method = c("asymptotic", "bootstrap"),
   weights = NULL,
   parallel = TRUE,
   ...
@@ -37,6 +39,7 @@ iv_testjfe(object, ...)
   x = NULL,
   n_boot = 1000,
   alpha = 0.05,
+  method = c("asymptotic", "bootstrap"),
   weights = NULL,
   parallel = TRUE,
   ...
@@ -61,6 +64,13 @@ judge means are computed.}
 \item{n_boot}{Number of multiplier-bootstrap replications. Default 1000.}
 
 \item{alpha}{Significance level for the returned verdict. Default 0.05.}
+
+\item{method}{Reference distribution for the p-value. \code{"asymptotic"}
+(default) uses the chi-squared with \code{K - 2} degrees of freedom.
+\code{"bootstrap"} uses the multiplier bootstrap of the restricted-
+model residual process. Asymptotic is fast and accurate for
+moderate \code{K}; bootstrap is preferred for small \code{K} or if
+errors are far from normal.}
 
 \item{weights}{Optional survey weights. Not yet implemented; reserved
 for v0.2.0.}

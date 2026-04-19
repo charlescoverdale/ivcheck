@@ -15,6 +15,12 @@
 #' @param x Optional numeric vector, matrix, or data frame of covariates.
 #'   If supplied, `y` and `d` are residualised on `x` before the per-
 #'   judge means are computed.
+#' @param method Reference distribution for the p-value. `"asymptotic"`
+#'   (default) uses the chi-squared with `K - 2` degrees of freedom.
+#'   `"bootstrap"` uses the multiplier bootstrap of the restricted-
+#'   model residual process. Asymptotic is fast and accurate for
+#'   moderate `K`; bootstrap is preferred for small `K` or if
+#'   errors are far from normal.
 #'
 #' @return An object of class `iv_test`; see [iv_kitagawa] for element
 #'   descriptions. Additional elements:
@@ -65,8 +71,11 @@ iv_testjfe <- function(object, ...) {
 #' @rdname iv_testjfe
 #' @export
 iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
-                               alpha = 0.05, weights = NULL,
+                               alpha = 0.05,
+                               method = c("asymptotic", "bootstrap"),
+                               weights = NULL,
                                parallel = TRUE, ...) {
+  method <- match.arg(method)
   y <- object
   validate_numeric(y, "y")
   d_num <- validate_binary(d, "d")
@@ -138,7 +147,7 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
   }
 
   df_test <- K - 2L
-  p_value <- if (is.finite(T_n)) 1 - stats::pchisq(T_n, df = df_test) else NA_real_
+  p_value_asy <- if (is.finite(T_n)) 1 - stats::pchisq(T_n, df = df_test) else NA_real_
 
   # A bootstrap analogue of the test statistic (multiplier on within-
   # judge deviations), kept for consistency with the other tests and
@@ -183,6 +192,17 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
     vapply(seq_len(n_boot), function(b) one_boot(), numeric(1))
   }
 
+  p_value_boot <- if (length(boot_stats) > 0L && is.finite(T_n)) {
+    mean(boot_stats >= T_n, na.rm = TRUE)
+  } else {
+    NA_real_
+  }
+
+  p_value <- switch(method,
+    asymptotic = p_value_asy,
+    bootstrap = p_value_boot
+  )
+
   binding_j <- if (all(is.finite(resid_j))) {
     idx <- which.max(abs(resid_j))
     list(judge = judges[idx], mu = mu_j[idx], p = p_j[idx], residual = resid_j[idx])
@@ -195,6 +215,9 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
       test = "Frandsen-Lefgren-Leslie (2023)",
       statistic = T_n,
       p_value = p_value,
+      p_value_asymptotic = p_value_asy,
+      p_value_bootstrap = p_value_boot,
+      method = method,
       alpha = alpha,
       n_boot = n_boot,
       boot_stats = boot_stats,
@@ -211,12 +234,15 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
 #' @rdname iv_testjfe
 #' @export
 iv_testjfe.fixest <- function(object, x = NULL, n_boot = 1000,
-                              alpha = 0.05, weights = NULL,
+                              alpha = 0.05,
+                              method = c("asymptotic", "bootstrap"),
+                              weights = NULL,
                               parallel = TRUE, ...) {
+  method <- match.arg(method)
   yz <- extract_iv_data(object)
   iv_testjfe.default(
     object = yz$y, d = yz$d, z = yz$z, x = x %||% yz$x,
-    n_boot = n_boot, alpha = alpha,
+    n_boot = n_boot, alpha = alpha, method = method,
     weights = weights, parallel = parallel, ...
   )
 }
@@ -224,12 +250,15 @@ iv_testjfe.fixest <- function(object, x = NULL, n_boot = 1000,
 #' @rdname iv_testjfe
 #' @export
 iv_testjfe.ivreg <- function(object, x = NULL, n_boot = 1000,
-                             alpha = 0.05, weights = NULL,
+                             alpha = 0.05,
+                             method = c("asymptotic", "bootstrap"),
+                             weights = NULL,
                              parallel = TRUE, ...) {
+  method <- match.arg(method)
   yz <- extract_iv_data(object)
   iv_testjfe.default(
     object = yz$y, d = yz$d, z = yz$z, x = x %||% yz$x,
-    n_boot = n_boot, alpha = alpha,
+    n_boot = n_boot, alpha = alpha, method = method,
     weights = weights, parallel = parallel, ...
   )
 }
