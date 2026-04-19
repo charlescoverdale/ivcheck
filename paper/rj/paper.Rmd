@@ -101,7 +101,7 @@ The bundled `card1995` dataset is a cleaned extract of 2,991 observations from t
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=0.85\linewidth]{figures/fig-card-bootstrap.pdf}
-\caption{\textbf{Kitagawa (2015) bootstrap distribution for the Card (1995) proximity-to-college IV, N = 2991.} Observed test statistic (solid line) and the $95^{\text{th}}$ percentile of the multiplier bootstrap (dashed). Treatment is a binary completed-college indicator (\texttt{educ >= 16}); the instrument is \texttt{near\_college}. The observed statistic sits well inside the bootstrap distribution; the test does not reject the null of IV validity at the 5\% level, consistent with the applied literature's reading of Card's design.}
+\caption{\textbf{Kitagawa (2015) bootstrap distribution for the Card (1995) proximity-to-college IV, N = 2991.} Observed test statistic (solid line) and the $95^{\text{th}}$ percentile of the multiplier bootstrap (dashed). Treatment is a binary completed-college indicator (\texttt{educ >= 16}); the instrument is \texttt{near\_college}. The observed statistic lies in the upper tail of the bootstrap distribution; the interval-sup test rejects the binary-discretised IV's testable implications at the 5\% level. This should not be interpreted as a rejection of Card's original IV, which targets continuous years of schooling. The binary threshold at \texttt{educ >= 16} creates mixed complier subpopulations that make the testable implications bite.}
 \label{fig:card}
 \end{figure}
 
@@ -158,7 +158,7 @@ m <- feols(
 iv_check(m, n_boot = 1000)
 ```
 
-The wrapper detects that `college` is binary and `near_college` is a binary instrument, runs Kitagawa and Mourifie-Wan, and returns the tidy diagnostic table. Neither test rejects at the 5\% level. This is not proof of validity, but it is a referee-facing falsification that passes.
+The wrapper detects that `college` is binary and `near_college` is a binary instrument, runs Kitagawa and Mourifie-Wan, and returns the tidy diagnostic table. The Kitagawa interval-sup statistic rejects at the 5\% level on this binary discretisation of Card's continuous schooling variable: a finding about the binary form of the IV question, not the original continuous-D one. Users running the test on their own binary-IV designs should inspect the `binding` element of the result to see which outcome interval carries the violation, and consider whether the discretisation itself is driving the finding.
 
 ## Monte Carlo validation
 
