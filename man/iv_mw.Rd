@@ -14,7 +14,10 @@ iv_mw(object, ...)
   d,
   z,
   x = NULL,
-  n_bins = 5L,
+  basis_order = 3L,
+  x_grid_size = 20L,
+  y_grid_size = 50L,
+  adaptive = TRUE,
   grid = NULL,
   n_boot = 1000,
   alpha = 0.05,
@@ -26,7 +29,10 @@ iv_mw(object, ...)
 \method{iv_mw}{fixest}(
   object,
   x = NULL,
-  n_bins = 5L,
+  basis_order = 3L,
+  x_grid_size = 20L,
+  y_grid_size = 50L,
+  adaptive = TRUE,
   grid = NULL,
   n_boot = 1000,
   alpha = 0.05,
@@ -38,7 +44,10 @@ iv_mw(object, ...)
 \method{iv_mw}{ivreg}(
   object,
   x = NULL,
-  n_bins = 5L,
+  basis_order = 3L,
+  x_grid_size = 20L,
+  y_grid_size = 50L,
+  adaptive = TRUE,
   grid = NULL,
   n_boot = 1000,
   alpha = 0.05,
@@ -59,15 +68,26 @@ model from \link[fixest:feols]{fixest::feols} or \code{ivreg::ivreg()}.}
 \item{z}{Discrete instrument (numeric or factor, default method only).}
 
 \item{x}{Optional numeric vector, matrix, or data frame of covariates.
-If supplied, the test is stratified by quantile bins of the first
-numeric column of \code{x}. If \code{NULL}, the test reduces to the
-unconditional Mourifie-Wan test.}
+If supplied, the test is conditional on the first numeric column
+of \code{x}. If \code{NULL}, the test reduces to the unconditional
+Mourifie-Wan test.}
 
-\item{n_bins}{Number of quantile bins of \code{x}. Default 5. Ignored when
-\code{x} is \code{NULL}.}
+\item{basis_order}{Polynomial order of the series-regression basis
+used to estimate \code{F(y, d | X, Z)}. Default 3 (cubic).}
 
-\item{grid}{Reserved. Custom outcome-evaluation grid for the CLR-style
-inference in v0.2.0.}
+\item{x_grid_size}{Number of quantile points of \code{x} at which to
+evaluate the conditional CDFs. Default 20.}
+
+\item{y_grid_size}{Number of quantile points of \code{y} at which to
+evaluate the inequalities. Default 50.}
+
+\item{adaptive}{Logical. If \code{TRUE} (default), the bootstrap uses the
+adaptive moment selection of Andrews-Soares (2010) with tuning
+parameter \code{kappa_n = sqrt(log(log(n)))}. If \code{FALSE}, uses the
+plug-in least-favourable critical value (conservative).}
+
+\item{grid}{Deprecated. Ignored; use \code{y_grid_size} and
+\code{x_grid_size} instead.}
 
 \item{n_boot}{Number of multiplier-bootstrap replications. Default 1000.}
 
@@ -83,26 +103,38 @@ POSIX systems via \link[parallel:mclapply]{parallel::mclapply}. Default \code{TR
 An object of class \code{iv_test}; see \link{iv_kitagawa} for element
 descriptions. Additional elements:
 \item{conditional}{Logical, whether covariates were supplied.}
-\item{n_bins}{Number of x-bins used when \code{conditional} is \code{TRUE}.}
+\item{kappa_n}{Andrews-Soares tuning parameter used
+(\code{NA} if not applicable).}
 }
 \description{
 Reformulates the testable implications of Kitagawa (2015) as a set of
-conditional moment inequalities. Without covariates \code{x}, \code{iv_mw} tests
-the same inequalities as \code{iv_kitagawa} and uses the same multiplier-
-bootstrap critical values (the two tests are asymptotically equivalent
-at the boundary of the null). With covariates, \code{iv_mw} stratifies the
-sample by quantile bins of \code{x}, runs the inequality test within each
-bin, and takes the max statistic across bins with a jointly-drawn
-multiplier bootstrap.
+conditional moment inequalities and tests them in the intersection-
+bounds framework of Chernozhukov, Lee, and Rosen (2013). Without
+covariates \code{x}, \code{iv_mw} tests the same inequalities as \code{iv_kitagawa}
+and reduces exactly to the variance-weighted Kitagawa test. With
+covariates, \code{iv_mw} estimates the conditional CDFs
+\verb{F(y, d | X = x, Z = z)} nonparametrically via series regression,
+computes plug-in heteroscedasticity-robust standard errors, and
+takes the sup over \verb{(y, x)} of the variance-weighted positive-part
+violation. Critical values come from a multiplier bootstrap with
+adaptive moment selection in the style of Andrews and Soares (2010).
 }
 \details{
-This is a first-pass implementation of Mourifie-Wan (2017). The
-unconditional path is exact. The conditional path uses a simple bin-
-stratified version that preserves the spirit of the CLR (2013)
-intersection-bounds framework without yet implementing the full
-Chernozhukov-Lee-Rosen inference. A v0.2.0 release will add the full
-CLR machinery; users needing that today should consult the Stata
-implementation accompanying the CLR (2015) paper.
+The CLR framework targets conditional moment inequalities of the
+form \verb{E[m(W; theta) | X] <= 0} for all \code{X}. Applied to Kitagawa's
+(2015) inequalities, the relevant moments are the positive-part
+differences of the conditional joint CDFs \code{F(y, d | X, Z)} for each
+\verb{(d, z_low, z_high, y, x)} index. \code{iv_mw} estimates \code{F(y, d | X, Z)}
+by series regression of the indicator \verb{1\{Y <= y, D = d\}} on a
+polynomial basis of \code{X} within each \code{Z} cell. Robust standard errors
+come from the heteroscedasticity-consistent sandwich of the series
+regression. Critical values are drawn by multiplier bootstrap: the
+bootstrap process reuses the plug-in SE denominator and perturbs
+the residuals by Rademacher weights, projected back through the
+basis. Adaptive moment selection includes only moments whose
+observed studentised statistic is within \code{kappa_n} of the
+inequality boundary, giving tighter critical values when some
+inequalities are strictly slack.
 }
 \examples{
 \donttest{

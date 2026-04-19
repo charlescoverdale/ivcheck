@@ -1,37 +1,57 @@
 #' Mourifie-Wan (2017) test for instrument validity
 #'
 #' Reformulates the testable implications of Kitagawa (2015) as a set of
-#' conditional moment inequalities. Without covariates `x`, `iv_mw` tests
-#' the same inequalities as `iv_kitagawa` and uses the same multiplier-
-#' bootstrap critical values (the two tests are asymptotically equivalent
-#' at the boundary of the null). With covariates, `iv_mw` stratifies the
-#' sample by quantile bins of `x`, runs the inequality test within each
-#' bin, and takes the max statistic across bins with a jointly-drawn
-#' multiplier bootstrap.
+#' conditional moment inequalities and tests them in the intersection-
+#' bounds framework of Chernozhukov, Lee, and Rosen (2013). Without
+#' covariates `x`, `iv_mw` tests the same inequalities as `iv_kitagawa`
+#' and reduces exactly to the variance-weighted Kitagawa test. With
+#' covariates, `iv_mw` estimates the conditional CDFs
+#' `F(y, d | X = x, Z = z)` nonparametrically via series regression,
+#' computes plug-in heteroscedasticity-robust standard errors, and
+#' takes the sup over `(y, x)` of the variance-weighted positive-part
+#' violation. Critical values come from a multiplier bootstrap with
+#' adaptive moment selection in the style of Andrews and Soares (2010).
 #'
 #' @inheritParams iv_kitagawa
 #' @param x Optional numeric vector, matrix, or data frame of covariates.
-#'   If supplied, the test is stratified by quantile bins of the first
-#'   numeric column of `x`. If `NULL`, the test reduces to the
-#'   unconditional Mourifie-Wan test.
-#' @param n_bins Number of quantile bins of `x`. Default 5. Ignored when
-#'   `x` is `NULL`.
-#' @param grid Reserved. Custom outcome-evaluation grid for the CLR-style
-#'   inference in v0.2.0.
+#'   If supplied, the test is conditional on the first numeric column
+#'   of `x`. If `NULL`, the test reduces to the unconditional
+#'   Mourifie-Wan test.
+#' @param basis_order Polynomial order of the series-regression basis
+#'   used to estimate `F(y, d | X, Z)`. Default 3 (cubic).
+#' @param x_grid_size Number of quantile points of `x` at which to
+#'   evaluate the conditional CDFs. Default 20.
+#' @param y_grid_size Number of quantile points of `y` at which to
+#'   evaluate the inequalities. Default 50.
+#' @param adaptive Logical. If `TRUE` (default), the bootstrap uses the
+#'   adaptive moment selection of Andrews-Soares (2010) with tuning
+#'   parameter `kappa_n = sqrt(log(log(n)))`. If `FALSE`, uses the
+#'   plug-in least-favourable critical value (conservative).
+#' @param grid Deprecated. Ignored; use `y_grid_size` and
+#'   `x_grid_size` instead.
 #'
 #' @return An object of class `iv_test`; see [iv_kitagawa] for element
 #'   descriptions. Additional elements:
 #'   \item{conditional}{Logical, whether covariates were supplied.}
-#'   \item{n_bins}{Number of x-bins used when `conditional` is `TRUE`.}
+#'   \item{kappa_n}{Andrews-Soares tuning parameter used
+#'     (`NA` if not applicable).}
 #'
 #' @details
-#' This is a first-pass implementation of Mourifie-Wan (2017). The
-#' unconditional path is exact. The conditional path uses a simple bin-
-#' stratified version that preserves the spirit of the CLR (2013)
-#' intersection-bounds framework without yet implementing the full
-#' Chernozhukov-Lee-Rosen inference. A v0.2.0 release will add the full
-#' CLR machinery; users needing that today should consult the Stata
-#' implementation accompanying the CLR (2015) paper.
+#' The CLR framework targets conditional moment inequalities of the
+#' form `E[m(W; theta) | X] <= 0` for all `X`. Applied to Kitagawa's
+#' (2015) inequalities, the relevant moments are the positive-part
+#' differences of the conditional joint CDFs `F(y, d | X, Z)` for each
+#' `(d, z_low, z_high, y, x)` index. `iv_mw` estimates `F(y, d | X, Z)`
+#' by series regression of the indicator `1{Y <= y, D = d}` on a
+#' polynomial basis of `X` within each `Z` cell. Robust standard errors
+#' come from the heteroscedasticity-consistent sandwich of the series
+#' regression. Critical values are drawn by multiplier bootstrap: the
+#' bootstrap process reuses the plug-in SE denominator and perturbs
+#' the residuals by Rademacher weights, projected back through the
+#' basis. Adaptive moment selection includes only moments whose
+#' observed studentised statistic is within `kappa_n` of the
+#' inequality boundary, giving tighter critical values when some
+#' inequalities are strictly slack.
 #'
 #' @references
 #' Mourifie, I. and Wan, Y. (2017). Testing Local Average Treatment
@@ -68,7 +88,12 @@ iv_mw <- function(object, ...) {
 
 #' @rdname iv_mw
 #' @export
-iv_mw.default <- function(object, d, z, x = NULL, n_bins = 5L, grid = NULL,
+iv_mw.default <- function(object, d, z, x = NULL,
+                          basis_order = 3L,
+                          x_grid_size = 20L,
+                          y_grid_size = 50L,
+                          adaptive = TRUE,
+                          grid = NULL,
                           n_boot = 1000, alpha = 0.05,
                           weights = NULL, parallel = TRUE, ...) {
   y <- object
@@ -84,12 +109,13 @@ iv_mw.default <- function(object, d, z, x = NULL, n_bins = 5L, grid = NULL,
   }
   if (!is.null(grid)) {
     cli::cli_warn(
-      "The {.arg grid} argument is reserved for the v0.2.0 CLR-style path and is ignored."
+      "The {.arg grid} argument is deprecated; use {.arg x_grid_size} and {.arg y_grid_size}."
     )
   }
 
   if (is.null(x)) {
-    core <- kitagawa_core_test(y, d_num, z_num, n_boot, parallel)
+    core <- kitagawa_core_test(y, d_num, z_num, n_boot, parallel,
+                               weighting = "variance")
     return(structure(
       list(
         test = "Mourifie-Wan (2017)",
@@ -100,7 +126,7 @@ iv_mw.default <- function(object, d, z, x = NULL, n_bins = 5L, grid = NULL,
         boot_stats = core$boot_stats,
         binding = core$binding,
         conditional = FALSE,
-        n_bins = NA_integer_,
+        kappa_n = NA_real_,
         n = core$n,
         call = sys.call()
       ),
@@ -108,60 +134,31 @@ iv_mw.default <- function(object, d, z, x = NULL, n_bins = 5L, grid = NULL,
     ))
   }
 
-  # Conditional path: stratify by quantile bins of the first x-column.
   x_mat <- if (is.matrix(x) || is.data.frame(x)) as.matrix(x) else cbind(x)
-  x_stratify <- x_mat[, 1]
-  validate_numeric(x_stratify, "x")
-  if (length(x_stratify) != n) {
+  validate_numeric(as.vector(x_mat), "x")
+  if (nrow(x_mat) != n) {
     cli::cli_abort("{.arg x} must have the same number of rows as {.arg y}.")
   }
 
-  bin_edges <- stats::quantile(
-    x_stratify, probs = seq(0, 1, length.out = n_bins + 1L), na.rm = TRUE
-  )
-  bin_edges[1] <- bin_edges[1] - .Machine$double.eps * abs(bin_edges[1] + 1)
-  bin <- as.integer(cut(x_stratify, breaks = bin_edges, include.lowest = TRUE))
-
-  per_bin <- vector("list", n_bins)
-  for (b in seq_len(n_bins)) {
-    idx <- which(bin == b)
-    if (length(idx) < 20L) {
-      per_bin[[b]] <- NULL
-      next
-    }
-    # Respect the user's parallel choice but serialise inside the bin
-    # loop to keep total cores bounded.
-    per_bin[[b]] <- kitagawa_core_test(
-      y[idx], d_num[idx], z_num[idx],
-      n_boot = n_boot, parallel = FALSE
-    )
-  }
-  valid <- which(!vapply(per_bin, is.null, logical(1)))
-  if (length(valid) == 0L) {
-    cli::cli_abort("No x-bin has sufficient observations (>= 20) to run the test.")
-  }
-
-  stats_by_bin <- vapply(per_bin[valid],
-                         function(r) r$statistic, numeric(1))
-  boot_mat <- do.call(cbind, lapply(per_bin[valid], function(r) r$boot_stats))
-  joint_obs <- max(stats_by_bin)
-  joint_boot <- apply(boot_mat, 1, max)
-  p_value <- mean(joint_boot >= joint_obs)
-
-  binding_bin <- valid[which.max(stats_by_bin)]
+  core <- mw_clr_test(y, d_num, z_num, x_mat, n_boot, parallel,
+                      basis_order = basis_order,
+                      x_grid_size = x_grid_size,
+                      y_grid_size = y_grid_size,
+                      adaptive = adaptive)
 
   structure(
     list(
       test = "Mourifie-Wan (2017)",
-      statistic = joint_obs,
-      p_value = p_value,
+      statistic = core$statistic,
+      p_value = core$p_value,
       alpha = alpha,
       n_boot = n_boot,
-      boot_stats = joint_boot,
-      binding = c(per_bin[[binding_bin]]$binding, list(x_bin = binding_bin)),
+      boot_stats = core$boot_stats,
+      binding = core$binding,
       conditional = TRUE,
-      n_bins = length(valid),
-      n = n,
+      kappa_n = core$kappa_n,
+      basis_order = core$basis_order,
+      n = core$n,
       call = sys.call()
     ),
     class = "iv_test"
@@ -170,13 +167,17 @@ iv_mw.default <- function(object, d, z, x = NULL, n_bins = 5L, grid = NULL,
 
 #' @rdname iv_mw
 #' @export
-iv_mw.fixest <- function(object, x = NULL, n_bins = 5L, grid = NULL,
-                         n_boot = 1000, alpha = 0.05, weights = NULL,
-                         parallel = TRUE, ...) {
+iv_mw.fixest <- function(object, x = NULL,
+                         basis_order = 3L, x_grid_size = 20L,
+                         y_grid_size = 50L, adaptive = TRUE,
+                         grid = NULL, n_boot = 1000, alpha = 0.05,
+                         weights = NULL, parallel = TRUE, ...) {
   yz <- extract_iv_data(object)
   iv_mw.default(
     object = yz$y, d = yz$d, z = yz$z,
-    x = x %||% yz$x, n_bins = n_bins, grid = grid,
+    x = x %||% yz$x,
+    basis_order = basis_order, x_grid_size = x_grid_size,
+    y_grid_size = y_grid_size, adaptive = adaptive, grid = grid,
     n_boot = n_boot, alpha = alpha,
     weights = weights, parallel = parallel, ...
   )
@@ -184,13 +185,17 @@ iv_mw.fixest <- function(object, x = NULL, n_bins = 5L, grid = NULL,
 
 #' @rdname iv_mw
 #' @export
-iv_mw.ivreg <- function(object, x = NULL, n_bins = 5L, grid = NULL,
-                        n_boot = 1000, alpha = 0.05, weights = NULL,
-                        parallel = TRUE, ...) {
+iv_mw.ivreg <- function(object, x = NULL,
+                        basis_order = 3L, x_grid_size = 20L,
+                        y_grid_size = 50L, adaptive = TRUE,
+                        grid = NULL, n_boot = 1000, alpha = 0.05,
+                        weights = NULL, parallel = TRUE, ...) {
   yz <- extract_iv_data(object)
   iv_mw.default(
     object = yz$y, d = yz$d, z = yz$z,
-    x = x %||% yz$x, n_bins = n_bins, grid = grid,
+    x = x %||% yz$x,
+    basis_order = basis_order, x_grid_size = x_grid_size,
+    y_grid_size = y_grid_size, adaptive = adaptive, grid = grid,
     n_boot = n_boot, alpha = alpha,
     weights = weights, parallel = parallel, ...
   )
