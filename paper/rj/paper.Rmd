@@ -26,12 +26,6 @@ output:
       in_header: header.tex
 ---
 
-```{=latex}
-\AtBeginDocument{
-  \author{Charles Coverdale\thanks{Email: \href{mailto:charles.f.coverdale@gmail.com}{charles.f.coverdale@gmail.com}. Package repository: \href{https://github.com/charlescoverdale/ivcheck}{github.com/charlescoverdale/ivcheck}.}\\ London, United Kingdom}
-}
-```
-
 ## Introduction
 
 The \CRANpkg{ivcheck} package provides falsification tests of the identifying assumptions behind instrumental variable (IV) estimation of the local average treatment effect (LATE). It implements three tests from the econometric literature [@kitagawa2015; @mourifie2017; @frandsen2023], each with S3 methods for fitted \CRANpkg{fixest} and \CRANpkg{ivreg} model objects, plus a wrapper that runs every applicable test on a single fitted model.
@@ -96,7 +90,7 @@ The supremum over `(y, y')` is computed on a quantile grid of observed outcomes 
 
 ### Card (1995) illustration
 
-The bundled `card1995` dataset is a cleaned extract of 2,991 observations from the Card [-@card1995] proximity-to-college IV for returns to schooling, with a binary `college` indicator added (`educ >= 16`). Figure \ref{fig:card} shows the bootstrap distribution of the Kitagawa statistic on this data using the `college` indicator as the binary treatment and `near_college` as the instrument.
+The bundled `card1995` dataset is a cleaned extract of 3,003 observations from the Card [-@card1995] proximity-to-college IV for returns to schooling, with a binary `college` indicator added (`educ >= 16`). Figure \ref{fig:card} shows the bootstrap distribution of the Kitagawa statistic on this data using the `college` indicator as the binary treatment and `near_college` as the instrument.
 
 \begin{figure}[tbp]
 \centering
@@ -166,12 +160,12 @@ The wrapper detects that `college` is binary and `near_college` is a binary inst
 
 ### Null distribution of `iv_testjfe`
 
-Figure \ref{fig:null} shows the empirical distribution of `T_n` from equation (\ref{eq:fll}) over 300 Monte Carlo replications under a valid-IV null, overlaid with the asymptotic chi-squared density with `K - 2 = 18` degrees of freedom. Empirical mean is 18.0 against target 18.0; empirical variance is 35.1 against target 36.0; the $95^{\text{th}}$ percentile is 29.4 against the chi-squared critical value of 28.9. Empirical size at nominal 5\% is 6.5\%, in line with sampling error at this Monte Carlo budget.
+Figure \ref{fig:null} shows the empirical distribution of `T_n` from equation (\ref{eq:fll}) over 200 Monte Carlo replications under a valid-IV null, overlaid with the asymptotic chi-squared density with `K - 2 = 18` degrees of freedom. Empirical mean is 17.7 against target 18.0; empirical variance is 28.8 against target 36.0; the $95^{\text{th}}$ percentile is 27.5 against the chi-squared critical value of 28.9. Empirical size at nominal 5\% is 1.5\%, slightly below nominal: a consequence of using structural residuals `u_i = y_i - \hat\alpha - \hat\beta D_i` to estimate the pooled variance (rather than within-judge variance of `Y`), which eliminates a first-stage binomial-variance inflation component and makes the test mildly conservative in finite samples.
 
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=0.85\linewidth]{figures/fig-testjfe-null.pdf}
-\caption{\textbf{Monte Carlo null distribution of the Frandsen-Lefgren-Leslie test statistic, K = 20 judges and N = 3000 observations per replication.} Histogram shows the empirical density from 300 replications under the null (Y independent of J given D). Red curve is the asymptotic chi-squared distribution with K - 2 = 18 degrees of freedom implied by equation (\ref{eq:fll}). Agreement is close in mean, variance, and upper-tail quantile.}
+\caption{\textbf{Monte Carlo null distribution of the Frandsen-Lefgren-Leslie test statistic, K = 20 judges and N = 3000 observations per replication.} Histogram shows the empirical density from 200 replications under the null (Y independent of J given D). Red curve is the asymptotic chi-squared distribution with K - 2 = 18 degrees of freedom implied by equation (\ref{eq:fll}). Agreement in mean and upper-tail quantile is close; the structural-residual variance estimator produces a slightly tighter empirical variance than the asymptotic theory predicts, giving a mildly conservative test.}
 \label{fig:null}
 \end{figure}
 
@@ -185,12 +179,15 @@ constant (Kitagawa's `\xi`). At the paper's informally-recommended
 value `\xi = 0.07`, the test was anti-conservative (5-11% empirical
 rejection at nominal 5%) under skewed Z-cell distributions with weak
 first stages at sample sizes below 1500. Raising the floor to
-`\xi = 0.15` brings size at or below nominal in all 24 configurations
-without measurable loss of power under direct-Z-effect violations
-(verified in a separate power simulation). The `se_floor` argument
-is user-tunable; setting `se_floor = 0.1` reproduces Kitagawa's
-published recommendation for users who want to match the paper
-exactly.
+`\xi = 0.15` brings empirical size at or below nominal 5\% in 23 of
+the 24 configurations; the single remaining outlier (n = 300,
+balanced first stage `P(D=1|Z) = 0.5`, Z-cell balance 35/65) lands
+at 8\%, within small-sample Monte Carlo noise given the 100 replications
+per cell. At the practical sample sizes for Card (1995) and similar
+designs (n >= 800) empirical size is at or below nominal throughout.
+The `se_floor` argument is user-tunable; setting `se_floor = 0.1`
+reproduces Kitagawa's published recommendation for users who want to
+match the paper exactly.
 
 ### Power under exclusion violation
 

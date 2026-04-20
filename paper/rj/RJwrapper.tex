@@ -67,8 +67,16 @@
 
 % Make DOIs in the bibliography clickable. natbib / plainnat prints
 % "doi: 10.xxxx" as plain text; redefine \doi so the string is wrapped
-% in \href and gets the blue colorlinks treatment.
-\renewcommand{\doi}[1]{\href{https://doi.org/#1}{doi:~#1}}
+% in \href and gets the blue colorlinks treatment. Use providecommand
+% guard for environments that do not define \doi by default.
+\providecommand{\doi}[1]{\href{https://doi.org/#1}{doi:~\detokenize{#1}}}
+\renewcommand{\doi}[1]{\href{https://doi.org/#1}{doi:~\detokenize{#1}}}
+
+% Author byline: name + location only (never employer). Injected via
+% AtBeginDocument so it overrides any R Journal default author block.
+\AtBeginDocument{
+  \author{Charles Coverdale\thanks{Email: \href{mailto:charles.f.coverdale@gmail.com}{charles.f.coverdale@gmail.com}. Package repository: \href{https://github.com/charlescoverdale/ivcheck}{github.com/charlescoverdale/ivcheck}.}\\ London, United Kingdom}
+}
 \usepackage{longtable}
 
 

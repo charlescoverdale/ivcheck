@@ -1,0 +1,66 @@
+===== Claim 1: iv_testjfe null distribution vs chi^2_{K-2} =====
+K = 20, N = 3000, reps = 200
+Empirical mean: 17.701    (target chi^2_{18} mean: 18)
+Empirical var:  28.758    (target chi^2_{18} var: 36)
+Empirical 95th: 27.492    (chi^2_{18} 95th percentile: 28.869)
+Empirical size: 0.015    (nominal: 0.050)
+
+===== Claim 2: iv_kitagawa MC size across 24 configurations =====
+  n= 300  fs=balanced    zb=equal   size=0.030
+  n= 800  fs=balanced    zb=equal   size=0.000
+  n=2000  fs=balanced    zb=equal   size=0.010
+  n= 300  fs=moderate    zb=equal   size=0.000
+  n= 800  fs=moderate    zb=equal   size=0.000
+  n=2000  fs=moderate    zb=equal   size=0.000
+  n= 300  fs=card_like   zb=equal   size=0.030
+  n= 800  fs=card_like   zb=equal   size=0.010
+  n=2000  fs=card_like   zb=equal   size=0.000
+  n= 300  fs=extreme     zb=equal   size=0.000
+  n= 800  fs=extreme     zb=equal   size=0.000
+  n=2000  fs=extreme     zb=equal   size=0.000
+  n= 300  fs=balanced    zb=skewed  size=0.080
+  n= 800  fs=balanced    zb=skewed  size=0.040
+  n=2000  fs=balanced    zb=skewed  size=0.020
+  n= 300  fs=moderate    zb=skewed  size=0.000
+  n= 800  fs=moderate    zb=skewed  size=0.000
+  n=2000  fs=moderate    zb=skewed  size=0.000
+  n= 300  fs=card_like   zb=skewed  size=0.020
+  n= 800  fs=card_like   zb=skewed  size=0.020
+  n=2000  fs=card_like   zb=skewed  size=0.010
+  n= 300  fs=extreme     zb=skewed  size=0.000
+  n= 800  fs=extreme     zb=skewed  size=0.000
+  n=2000  fs=extreme     zb=skewed  size=0.000
+
+Max size across all configs: 0.080 (expected <= 0.05)
+
+===== Claim 3: iv_kitagawa power curve (N = 500) =====
+  delta     power
+1   0.0 0.0000000
+2   0.5 0.0000000
+3   1.0 0.2166667
+4   1.5 0.9166667
+5   2.0 1.0000000
+
+===== Claim 4: Card (1995) end-to-end =====
+Card N = 3003
+Kitagawa stat: 5.248  p-value: 0.000
+Binding: $z_low
+[1] 0
+
+$z_high
+[1] 1
+
+$direction
+[1] "d = 0"
+
+$y_lower
+[1] 6.250172
+
+$y_upper
+[1] 7.784889
+
+
+===== Claim 5: iv_kitagawa == iv_mw without covariates =====
+iv_kitagawa stat: 1.185424
+iv_mw stat:       1.185424
+Numerically equal: TRUE
