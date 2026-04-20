@@ -10,3 +10,4 @@
 ^\.git$
 ^\.DS_Store$
 ^DEEP_REVIEW\.md$
+^CRAN-SUBMISSION$
