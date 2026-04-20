@@ -190,12 +190,12 @@ As of 2026-04-19 there is no equivalent package on PyPI. Kitagawa (2015) has Mat
 
 ## Planned for future versions
 
-- `iv_hm()`: Huber-Mellace (2015, *ReStat*) mean-based moment-inequality form, complementary to the CDF form of Kitagawa
 - `iv_frd()`: Arai, Hsu, Kitagawa, Mourifie, Wan (2022, *QE*) fuzzy regression discontinuity
 - Continuous-instrument extension via Andrews and Shi (2013) conditional-moment-inequality inference
 - Weighted inference in the `iv_mw` conditional (x) series-regression path
 - Rcpp fast path for the interval-sup multiplier bootstrap
 - Full flexible-basis FLL restricted-LS test with Andrews-Soares bounded-slope moment selection
+- **Stata cross-validation.** Numeric-agreement tests against the Stata `testjfe` module (Frandsen, BYU, 2020) and the `clrtest` Stata package of Chernozhukov, Lee, and Rosen (2015) on shared simulated and replication data. Required to close the last academic-defensibility item. Needs Stata access, so deferred to the next release.
 
 ## Functions
 
