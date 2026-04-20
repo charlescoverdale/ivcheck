@@ -5,7 +5,7 @@
 \alias{iv_kitagawa.default}
 \alias{iv_kitagawa.fixest}
 \alias{iv_kitagawa.ivreg}
-\title{Kitagawa (2015) test for instrument validity}
+\title{Kitagawa (2015) / Sun (2023) test for instrument validity}
 \usage{
 iv_kitagawa(object, ...)
 
@@ -75,7 +75,8 @@ POSIX systems via \link[parallel:mclapply]{parallel::mclapply}. Default \code{TR
 }
 \value{
 An object of class \code{iv_test} with elements:
-\item{test}{Character, always \code{"Kitagawa (2015)"}.}
+\item{test}{\code{"Kitagawa (2015)"} for binary treatment;
+\code{"Sun (2023)"} for multivalued ordered treatment.}
 \item{statistic}{Numeric test statistic (Kolmogorov-Smirnov
 positive-part, scaled by sqrt(n)).}
 \item{p_value}{Bootstrap p-value.}
@@ -89,12 +90,13 @@ configuration of the observed statistic.}
 }
 \description{
 Tests the joint implication of the local exclusion restriction and the
-local monotonicity condition in a binary-treatment, discrete-instrument
-setting. The null hypothesis is that the instrument is valid. Under the
-null, the conditional distributions of the outcome given treatment
-status, evaluated at each level of the instrument, must satisfy a set
-of stochastic dominance inequalities. Rejection is evidence that at
-least one of exclusion or monotonicity fails.
+local monotonicity condition in a discrete-instrument setting.
+Supports binary treatment (Kitagawa 2015) and ordered multivalued
+treatment (Sun 2023). The null is that the instrument is valid. Under
+the null, the conditional joint distribution of \verb{(Y, D | Z)} must
+satisfy stochastic dominance inequalities on cumulative-tail events.
+Rejection is evidence that at least one of exclusion or monotonicity
+fails.
 }
 \details{
 Kitagawa (2015) equation 2.1 defines the statistic as the max over
@@ -128,6 +130,9 @@ iv_kitagawa(y, d, z, n_boot = 200, parallel = FALSE)
 \references{
 Kitagawa, T. (2015). A Test for Instrument Validity. \emph{Econometrica},
 83(5), 2043-2063. \doi{10.3982/ECTA11974}
+
+Sun, Z. (2023). Instrument Validity for Heterogeneous Causal Effects.
+\emph{Journal of Econometrics}. \doi{10.1016/j.jeconom.2023.105628}
 
 Imbens, G. W. and Angrist, J. D. (1994). Identification and Estimation
 of Local Average Treatment Effects. \emph{Econometrica}, 62(2), 467-475.

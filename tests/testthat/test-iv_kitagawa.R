@@ -11,11 +11,30 @@ test_that("iv_kitagawa returns an iv_test object with the right structure", {
   expect_equal(length(out$boot_stats), 50L)
 })
 
-test_that("iv_kitagawa rejects non-binary d with a clear message", {
+test_that("iv_kitagawa rejects continuous d with a clear message", {
   y <- rnorm(100)
   d <- rnorm(100)
   z <- sample(0:1, 100, replace = TRUE)
-  expect_error(iv_kitagawa(y, d, z, n_boot = 10, parallel = FALSE), "binary")
+  # Continuous d has hundreds of unique values; validator caps at 20.
+  expect_error(iv_kitagawa(y, d, z, n_boot = 10, parallel = FALSE),
+               "levels")
+})
+
+test_that("iv_kitagawa dispatches Sun (2023) for multivalued D", {
+  skip_on_cran()
+  set.seed(1)
+  n <- 500
+  z <- sample(0:1, n, replace = TRUE)
+  d <- vapply(z, function(zi) {
+    u <- runif(1)
+    pp <- if (zi == 1) c(0.2, 0.3, 0.5) else c(0.5, 0.3, 0.2)
+    if (u < pp[1]) 0L else if (u < pp[1] + pp[2]) 1L else 2L
+  }, integer(1))
+  y <- rnorm(n, mean = d)
+  out <- iv_kitagawa(y, d, z, n_boot = 50, parallel = FALSE)
+  expect_identical(out$test, "Sun (2023)")
+  expect_true(out$multivalued)
+  expect_equal(out$n_treatment_levels, 3L)
 })
 
 test_that("iv_kitagawa rejects unequal-length inputs", {
@@ -58,7 +77,7 @@ test_that("iv_kitagawa binding element is populated when statistic > 0", {
   out <- iv_kitagawa(y, d, z, n_boot = 50, parallel = FALSE)
   expect_true(is.null(out$binding) || is.list(out$binding))
   if (!is.null(out$binding)) {
-    expect_named(out$binding, c("z_low", "z_high", "d", "y_lower", "y_upper"))
+    expect_named(out$binding, c("z_low", "z_high", "direction", "y_lower", "y_upper"))
   }
 })
 

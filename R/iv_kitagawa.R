@@ -1,12 +1,13 @@
-#' Kitagawa (2015) test for instrument validity
+#' Kitagawa (2015) / Sun (2023) test for instrument validity
 #'
 #' Tests the joint implication of the local exclusion restriction and the
-#' local monotonicity condition in a binary-treatment, discrete-instrument
-#' setting. The null hypothesis is that the instrument is valid. Under the
-#' null, the conditional distributions of the outcome given treatment
-#' status, evaluated at each level of the instrument, must satisfy a set
-#' of stochastic dominance inequalities. Rejection is evidence that at
-#' least one of exclusion or monotonicity fails.
+#' local monotonicity condition in a discrete-instrument setting.
+#' Supports binary treatment (Kitagawa 2015) and ordered multivalued
+#' treatment (Sun 2023). The null is that the instrument is valid. Under
+#' the null, the conditional joint distribution of `(Y, D | Z)` must
+#' satisfy stochastic dominance inequalities on cumulative-tail events.
+#' Rejection is evidence that at least one of exclusion or monotonicity
+#' fails.
 #'
 #' @param object For the default method: a numeric outcome vector.
 #'   For the `fixest` and `ivreg` methods: a fitted instrumental variable
@@ -32,7 +33,8 @@
 #' @param ... Further arguments passed to methods.
 #'
 #' @return An object of class `iv_test` with elements:
-#'   \item{test}{Character, always `"Kitagawa (2015)"`.}
+#'   \item{test}{`"Kitagawa (2015)"` for binary treatment;
+#'     `"Sun (2023)"` for multivalued ordered treatment.}
 #'   \item{statistic}{Numeric test statistic (Kolmogorov-Smirnov
 #'     positive-part, scaled by sqrt(n)).}
 #'   \item{p_value}{Bootstrap p-value.}
@@ -64,6 +66,9 @@
 #' @references
 #' Kitagawa, T. (2015). A Test for Instrument Validity. *Econometrica*,
 #' 83(5), 2043-2063. \doi{10.3982/ECTA11974}
+#'
+#' Sun, Z. (2023). Instrument Validity for Heterogeneous Causal Effects.
+#' *Journal of Econometrics*. \doi{10.1016/j.jeconom.2023.105628}
 #'
 #' Imbens, G. W. and Angrist, J. D. (1994). Identification and Estimation
 #' of Local Average Treatment Effects. *Econometrica*, 62(2), 467-475.
@@ -98,16 +103,19 @@ iv_kitagawa.default <- function(object, d, z, n_boot = 1000, alpha = 0.05,
   weighting <- match.arg(weighting)
   y <- object
   validate_numeric(y, "y")
-  d_num <- validate_binary(d, "d")
+  # Accept binary or multivalued ordered D. Binary is Kitagawa (2015);
+  # multivalued uses the cumulative-tail extension of Sun (2023).
+  d_num <- validate_treatment_discrete(d, "d", max_levels = 20L)
   z_num <- validate_discrete(z, "z")
   check_lengths(y, d_num, z_num)
 
   core <- kitagawa_core_test(y, d_num, z_num, n_boot, parallel,
                              weighting = weighting, weights = weights)
 
+  test_name <- if (core$multivalued) "Sun (2023)" else "Kitagawa (2015)"
   structure(
     list(
-      test = "Kitagawa (2015)",
+      test = test_name,
       statistic = core$statistic,
       p_value = core$p_value,
       alpha = alpha,
@@ -115,6 +123,8 @@ iv_kitagawa.default <- function(object, d, z, n_boot = 1000, alpha = 0.05,
       boot_stats = core$boot_stats,
       binding = core$binding,
       weighting = weighting,
+      n_treatment_levels = core$n_treatment_levels,
+      multivalued = core$multivalued,
       n = core$n,
       call = sys.call()
     ),

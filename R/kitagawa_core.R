@@ -31,14 +31,23 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
     if (any(weights < 0) || any(!is.finite(weights))) {
       cli::cli_abort("{.arg weights} must be finite and non-negative.")
     }
-    # Rescale so mean = 1 (preserves effective sample size interpretation)
     w <- weights * n / sum(weights)
   }
+
+  # Identify treatment levels. For binary D (Kitagawa 2015) thresholds
+  # reduce to L = 1. For ordered multivalued D (Sun 2023) there are L+1
+  # levels {0, 1, ..., L}; we test stochastic-dominance inequalities on
+  # cumulative tails P(Y <= y, D >= ell | Z) for ell = 1, ..., L and
+  # P(Y <= y, D <= ell | Z) for ell = 0, ..., L-1.
+  d_vals <- sort(unique(d_num))
+  L <- length(d_vals) - 1L
+  multivalued <- L > 1L
 
   # Order Z levels ascending by first-stage E[D | Z].
   raw_levels <- sort(unique(z_num))
   e_d_by_z <- vapply(raw_levels,
-                     function(zk) mean(d_num[z_num == zk]),
+                     function(zk) sum(w[z_num == zk] * d_num[z_num == zk]) /
+                                  sum(w[z_num == zk]),
                      numeric(1))
   ord <- order(e_d_by_z)
   z_levels <- raw_levels[ord]
@@ -60,13 +69,21 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
 
   leY <- outer(y, y_grid, "<=")
 
-  # Joint CDF F_arr[g, k, d_idx] = F_hat(y_grid[g], d | z_levels[k])
-  F_arr <- array(0, dim = c(G, K, 2))
+  # Joint CDF F_arr[g, k, l_idx] encodes the necessary conditional CDFs.
+  # For binary D (L = 1), we use two indicators:
+  #   F_arr[, , 1] = F_hat(y, D = 0 | z) (needed for d = 0 inequality)
+  #   F_arr[, , 2] = F_hat(y, D = 1 | z) (needed for d = 1 inequality)
+  # For multivalued ordered D (L > 1), we instead store the cumulative-tail
+  # families:
+  #   F_arr[, , ell]         = F_hat(y, D <= d_vals[ell]  | z)  for ell = 1..L
+  #   F_arr[, , L + ell]     = F_hat(y, D >= d_vals[ell+1] | z) for ell = 1..L
+  # Each "direction" gives L inequalities per instrument pair.
+  n_L_planes <- if (multivalued) 2L * L else 2L
+  F_arr <- array(0, dim = c(G, K, n_L_planes))
   n_z <- integer(K)
   idx_by_z <- vector("list", K)
-
-  # Effective sample sizes (used for scaling under weighting).
   n_z_eff <- numeric(K)
+
   for (k in seq_len(K)) {
     idx <- which(z_num == z_levels[k])
     idx_by_z[[k]] <- idx
@@ -77,9 +94,22 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
     w_sub <- w[idx]
     sw_k <- sum(w_sub)
     n_z_eff[k] <- sw_k
-    # Weighted empirical joint CDF: (1/sum w_i) sum w_i * 1{...}
-    F_arr[, k, 2] <- colSums(w_sub * leY_sub * d_sub) / sw_k
-    F_arr[, k, 1] <- colSums(w_sub * leY_sub * (1 - d_sub)) / sw_k
+    if (!multivalued) {
+      F_arr[, k, 2] <- colSums(w_sub * leY_sub * d_sub) / sw_k
+      F_arr[, k, 1] <- colSums(w_sub * leY_sub * (1 - d_sub)) / sw_k
+    } else {
+      # Ordered multivalued D (Sun 2023). For each threshold ell = 1..L:
+      #   lower plane: P(Y <= y, D <= d_vals[ell] | z)
+      #   upper plane: P(Y <= y, D >= d_vals[ell + 1] | z)
+      for (ell in seq_len(L)) {
+        d_thr <- d_vals[ell]
+        ind_le <- (d_sub <= d_thr)
+        F_arr[, k, ell] <- colSums(w_sub * leY_sub * ind_le) / sw_k
+        d_thr_up <- d_vals[ell + 1L]
+        ind_ge <- (d_sub >= d_thr_up)
+        F_arr[, k, L + ell] <- colSums(w_sub * leY_sub * ind_ge) / sw_k
+      }
+    }
   }
 
   # Interval probabilities P_k_d[g1, g2] = F_hat(y_grid[g2], d | z_k) -
@@ -98,22 +128,15 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
     outer(f_ext, f_ext, "-") * -1  # P[g1, g2] = F(g2) - F(g1)
   }
 
-  # Pre-compute the data-derived SE matrix once per (k_low, k_high, d).
-  # Kitagawa (2015) eq. 2.1: with lambda_k = n_k / n for k in
-  # {low, high}, sigma^2([y, y'], d) =
-  #   (n_high / n) * P_low  * (1 - P_low)
-  # + (n_low  / n) * P_high * (1 - P_high).
-  # That is, the variance of sqrt(n_low * n_high / n) * (P_low - P_high)
-  # asymptotic to a binomial mixture. Both the observed statistic and
-  # every bootstrap statistic are normalised by this plug-in SE.
-  SE_cache <- array(0, dim = c(G + 1L, G + 1L, K, K, 2))
+  # Pre-compute the data-derived SE matrix. Same binomial-mixture logic
+  # per plane; the n_L_planes dimension replaces the old "2" (d) axis.
+  SE_cache <- array(0, dim = c(G + 1L, G + 1L, K, K, n_L_planes))
   if (weighting == "variance") {
     for (k_low in seq_len(K - 1L)) {
       for (k_high in (k_low + 1L):K) {
-        for (d_idx in 1:2) {
+        for (d_idx in seq_len(n_L_planes)) {
           P_low  <- interval_diff(F_arr, k_low,  d_idx)
           P_high <- interval_diff(F_arr, k_high, d_idx)
-          # Weighted mixture variance using effective sample sizes.
           total_eff <- n_z_eff[k_low] + n_z_eff[k_high]
           w_low  <- n_z_eff[k_high] / total_eff
           w_high <- n_z_eff[k_low]  / total_eff
@@ -132,51 +155,61 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
     SE_cache[, , k_low, k_high, d_idx]
   }
 
+  # Violation-direction descriptor: for binary D these are literally
+  # (d = 0, d = 1); for multivalued D they are cumulative-tail thresholds
+  # (D <= ell vs D >= ell+1). Violations have opposite sign between the
+  # two directions, encoded by `sign_low` (= +1 for the "low tail"
+  # inequality and -1 for the "upper tail").
+  direction_info <- function() {
+    if (!multivalued) {
+      list(
+        list(plane = 2L, label = "d = 1", direction = +1L),  # low - high >= 0
+        list(plane = 1L, label = "d = 0", direction = -1L)   # high - low >= 0
+      )
+    } else {
+      out <- vector("list", 2L * L)
+      for (ell in seq_len(L)) {
+        out[[ell]] <- list(plane = ell, label = paste0("D <= ", d_vals[ell]),
+                           direction = -1L)
+        out[[L + ell]] <- list(plane = L + ell,
+                               label = paste0("D >= ", d_vals[ell + 1L]),
+                               direction = +1L)
+      }
+      out
+    }
+  }
+  dirs <- direction_info()
+
   compute_stat <- function(F_arr_local) {
     best <- 0
     binding_local <- NULL
     if (K < 2L) return(list(stat = 0, binding = NULL))
     for (k_low in seq_len(K - 1L)) {
       for (k_high in (k_low + 1L):K) {
-        # d = 1: P(Y in B, D=1 | z_low) - P(Y in B, D=1 | z_high) <= 0
-        Pdiff_1_low  <- interval_diff(F_arr_local, k_low,  2)
-        Pdiff_1_high <- interval_diff(F_arr_local, k_high, 2)
-        viol_1 <- Pdiff_1_low - Pdiff_1_high
-        SE_1   <- pair_interval_se(k_low, k_high, 2)
-        # Only consider upper triangle (g1 < g2).
-        UT <- upper.tri(viol_1, diag = TRUE)
-        V1 <- viol_1 / SE_1
-        V1[!UT] <- -Inf
-        m1 <- max(V1)
-        if (m1 > best) {
-          best <- m1
-          pos <- which(V1 == m1, arr.ind = TRUE)[1, ]
-          binding_local <- list(
-            z_low = z_levels[k_low],
-            z_high = z_levels[k_high],
-            d = 1L,
-            y_lower = if (pos[1] == 1L) -Inf else y_grid[pos[1] - 1L],
-            y_upper = y_grid[pos[2] - 1L]
-          )
-        }
-        # d = 0: P(Y in B, D=0 | z_high) - P(Y in B, D=0 | z_low) <= 0
-        Pdiff_0_low  <- interval_diff(F_arr_local, k_low,  1)
-        Pdiff_0_high <- interval_diff(F_arr_local, k_high, 1)
-        viol_0 <- Pdiff_0_high - Pdiff_0_low
-        SE_0   <- pair_interval_se(k_low, k_high, 1)
-        V0 <- viol_0 / SE_0
-        V0[!UT] <- -Inf
-        m0 <- max(V0)
-        if (m0 > best) {
-          best <- m0
-          pos <- which(V0 == m0, arr.ind = TRUE)[1, ]
-          binding_local <- list(
-            z_low = z_levels[k_low],
-            z_high = z_levels[k_high],
-            d = 0L,
-            y_lower = if (pos[1] == 1L) -Inf else y_grid[pos[1] - 1L],
-            y_upper = y_grid[pos[2] - 1L]
-          )
+        for (dd in dirs) {
+          P_low  <- interval_diff(F_arr_local, k_low,  dd$plane)
+          P_high <- interval_diff(F_arr_local, k_high, dd$plane)
+          diff_mat <- if (dd$direction > 0) {
+            P_low - P_high
+          } else {
+            P_high - P_low
+          }
+          SE_m <- pair_interval_se(k_low, k_high, dd$plane)
+          UT <- upper.tri(diff_mat, diag = TRUE)
+          V <- diff_mat / SE_m
+          V[!UT] <- -Inf
+          m <- max(V)
+          if (m > best) {
+            best <- m
+            pos <- which(V == m, arr.ind = TRUE)[1, ]
+            binding_local <- list(
+              z_low = z_levels[k_low],
+              z_high = z_levels[k_high],
+              direction = dd$label,
+              y_lower = if (pos[1] == 1L) -Inf else y_grid[pos[1] - 1L],
+              y_upper = y_grid[pos[2] - 1L]
+            )
+          }
         }
       }
     }
@@ -194,19 +227,26 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
   }
   T_n <- scale_n * obs$stat
 
-  # Precompute weight-scaled centred indicator matrices for the
-  # multiplier bootstrap. Each observation's contribution to the bootstrap
-  # F^* process is w_i * (indicator - F_hat) multiplied by a Rademacher
-  # weight. Normalisation uses the per-judge sum of weights (sw_k).
-  centred <- list()
-  for (d_idx in 1:2) {
-    d_val <- d_idx - 1L
+  # Precompute centred indicator matrices for the multiplier bootstrap.
+  # Binary D: two planes (D = 0, D = 1). Multivalued D: 2L planes matching
+  # the cumulative-tail structure of F_arr.
+  centred <- vector("list", n_L_planes)
+  for (d_idx in seq_len(n_L_planes)) {
     mat <- matrix(0, nrow = n, ncol = G)
-    raw <- leY * (d_num == d_val)
+    if (!multivalued) {
+      d_val <- d_idx - 1L
+      raw <- leY * (d_num == d_val)
+    } else if (d_idx <= L) {
+      # lower plane: D <= d_vals[ell] where ell = d_idx
+      raw <- leY * (d_num <= d_vals[d_idx])
+    } else {
+      # upper plane: D >= d_vals[ell + 1] where ell = d_idx - L
+      ell <- d_idx - L
+      raw <- leY * (d_num >= d_vals[ell + 1L])
+    }
     for (k in seq_len(K)) {
       idx <- idx_by_z[[k]]
       if (length(idx) == 0L) next
-      # w * (indicator - F_hat)
       mat[idx, ] <- w[idx] * (raw[idx, , drop = FALSE] -
         matrix(F_arr[, k, d_idx], nrow = length(idx), ncol = G, byrow = TRUE))
     }
@@ -215,8 +255,8 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
 
   one_boot <- function() {
     W <- sample(c(-1, 1), n, replace = TRUE)
-    F_star <- array(0, dim = c(G, K, 2))
-    for (d_idx in 1:2) {
+    F_star <- array(0, dim = c(G, K, n_L_planes))
+    for (d_idx in seq_len(n_L_planes)) {
       C <- centred[[d_idx]]
       for (k in seq_len(K)) {
         idx <- idx_by_z[[k]]
@@ -249,6 +289,8 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
     boot_stats = boot_stats,
     binding = obs$binding,
     n = n,
-    weighting = weighting
+    weighting = weighting,
+    n_treatment_levels = L + 1L,
+    multivalued = multivalued
   )
 }
