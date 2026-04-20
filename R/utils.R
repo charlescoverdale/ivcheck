@@ -21,10 +21,17 @@ validate_binary <- function(d, arg = "d") {
 }
 
 # Validator for discrete treatment: accepts binary (0/1) or multi-valued
-# integer / factor. Used by iv_testjfe() which supports both cases.
+# integer / factor. Used by iv_testjfe() and iv_kitagawa() which support
+# both cases. Returns a list with the remapped 0..(k-1) vector and the
+# original sorted level values (needed so binding-direction labels in
+# user-facing output reflect the user's original D coding rather than
+# the internal remap).
 validate_treatment_discrete <- function(d, arg = "d", max_levels = 20L) {
   if (is.factor(d)) {
+    d_labels <- levels(d)
     d <- as.integer(d) - 1L
+  } else {
+    d_labels <- NULL
   }
   if (!is.numeric(d) && !is.logical(d) && !is.integer(d)) {
     cli::cli_abort("{.arg {arg}} must be numeric, integer, or factor.")
@@ -43,12 +50,13 @@ validate_treatment_discrete <- function(d, arg = "d", max_levels = 20L) {
       "{.arg {arg}} has {k} levels; the test supports up to {max_levels}."
     )
   }
+  # Preserve the user's original level values for downstream labelling.
+  original_levels <- vals
   if (!all(vals == seq(0L, k - 1L))) {
-    # Remap to 0, 1, ..., k-1
     mapping <- stats::setNames(seq(0L, k - 1L), vals)
     d_num <- as.numeric(mapping[as.character(d_num)])
   }
-  invisible(d_num)
+  list(d_num = d_num, original_levels = original_levels, labels = d_labels)
 }
 
 validate_discrete <- function(z, arg = "z", max_levels = 50L) {

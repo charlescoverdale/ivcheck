@@ -18,7 +18,8 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
                                weighting = c("variance", "unweighted"),
                                weights = NULL,
                                se_floor = 0.15,
-                               y_grid_size = 50L) {
+                               y_grid_size = 50L,
+                               d_labels = NULL) {
   weighting <- match.arg(weighting)
   n <- length(y)
 
@@ -159,20 +160,28 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
   # (d = 0, d = 1); for multivalued D they are cumulative-tail thresholds
   # (D <= ell vs D >= ell+1). Violations have opposite sign between the
   # two directions, encoded by `sign_low` (= +1 for the "low tail"
-  # inequality and -1 for the "upper tail").
+  # inequality and -1 for the "upper tail"). Labels use the user's
+  # original D coding where available (d_labels), not the internal 0..k-1
+  # remap.
+  label_for <- function(i) {
+    if (!is.null(d_labels) && length(d_labels) >= i) d_labels[i] else d_vals[i]
+  }
   direction_info <- function() {
     if (!multivalued) {
       list(
-        list(plane = 2L, label = "d = 1", direction = +1L),  # low - high >= 0
-        list(plane = 1L, label = "d = 0", direction = -1L)   # high - low >= 0
+        list(plane = 2L, label = paste0("d = ", label_for(2L)),
+             direction = +1L),  # low - high >= 0
+        list(plane = 1L, label = paste0("d = ", label_for(1L)),
+             direction = -1L)   # high - low >= 0
       )
     } else {
       out <- vector("list", 2L * L)
       for (ell in seq_len(L)) {
-        out[[ell]] <- list(plane = ell, label = paste0("D <= ", d_vals[ell]),
+        out[[ell]] <- list(plane = ell,
+                           label = paste0("D <= ", label_for(ell)),
                            direction = -1L)
         out[[L + ell]] <- list(plane = L + ell,
-                               label = paste0("D >= ", d_vals[ell + 1L]),
+                               label = paste0("D >= ", label_for(ell + 1L)),
                                direction = +1L)
       }
       out
@@ -186,6 +195,15 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
     if (K < 2L) return(list(stat = 0, binding = NULL))
     for (k_low in seq_len(K - 1L)) {
       for (k_high in (k_low + 1L):K) {
+        # Kitagawa (2015) eq. 2.1: the statistic for pair (z_low, z_high)
+        # is sqrt(n_low * n_high / (n_low + n_high)) times the sup of
+        # the positive-part difference divided by the plug-in SE. When
+        # cells are unequal, this pair-specific scale differs from the
+        # naive sqrt(n) rescaling applied globally; we incorporate it
+        # per-pair so that the T_n value the user sees matches the
+        # paper's formula exactly.
+        pair_scale <- sqrt(n_z_eff[k_low] * n_z_eff[k_high] /
+                             (n_z_eff[k_low] + n_z_eff[k_high]))
         for (dd in dirs) {
           P_low  <- interval_diff(F_arr_local, k_low,  dd$plane)
           P_high <- interval_diff(F_arr_local, k_high, dd$plane)
@@ -196,7 +214,7 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
           }
           SE_m <- pair_interval_se(k_low, k_high, dd$plane)
           UT <- upper.tri(diff_mat, diag = TRUE)
-          V <- diff_mat / SE_m
+          V <- pair_scale * diff_mat / SE_m
           V[!UT] <- -Inf
           m <- max(V)
           if (m > best) {
@@ -217,14 +235,12 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
   }
 
   obs <- compute_stat(F_arr)
-  # Kitagawa (eq. 2.1) scales by sqrt(n_low * n_high / n_total). Under
-  # survey weights the effective sample sizes replace raw counts.
+  # Pair-specific scaling is now applied inside compute_stat, so obs$stat
+  # is already on the Kitagawa (eq. 2.1) scale for the variance-weighted
+  # form. The unweighted form still gets a global sqrt(n) rescaling to
+  # match eq. 2.2.
   n_eff_total <- sum(n_z_eff)
-  scale_n <- if (weighting == "variance") {
-    sqrt(n_eff_total / K)
-  } else {
-    sqrt(n_eff_total)
-  }
+  scale_n <- if (weighting == "variance") 1 else sqrt(n_eff_total)
   T_n <- scale_n * obs$stat
 
   # Precompute centred indicator matrices for the multiplier bootstrap.

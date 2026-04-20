@@ -60,8 +60,9 @@
 #' `d in {0, 1}`, and intervals `[y, y']` with `y <= y'`, of the
 #' positive-part interval-probability difference normalised by the
 #' binomial-mixture plug-in standard error:
-#' `T_n = sqrt(n_low * n_high / n) * max [P([y, y'], d | z_low)`
-#' `- P([y, y'], d | z_high)]^+ / sigma_hat`. The sign flips for
+#' `T_n = sqrt(n_low * n_high / (n_low + n_high))`
+#' `* max [P([y, y'], d | z_low) - P([y, y'], d | z_high)]^+ / sigma_hat`.
+#' (The denominator is the pair total, not the full sample size.) The sign flips for
 #' `d = 0`. Instrument levels are pre-ordered by first-stage
 #' `E_hat[D | Z]` so the inequalities are one-sided and `T_n >= 0`.
 #' The implementation evaluates the sup on a quantile grid of observed
@@ -114,13 +115,15 @@ iv_kitagawa.default <- function(object, d, z, n_boot = 1000, alpha = 0.05,
   validate_numeric(y, "y")
   # Accept binary or multivalued ordered D. Binary is Kitagawa (2015);
   # multivalued uses the cumulative-tail extension of Sun (2023).
-  d_num <- validate_treatment_discrete(d, "d", max_levels = 20L)
+  d_info <- validate_treatment_discrete(d, "d", max_levels = 20L)
+  d_num <- d_info$d_num
   z_num <- validate_discrete(z, "z")
   check_lengths(y, d_num, z_num)
 
   core <- kitagawa_core_test(y, d_num, z_num, n_boot, parallel,
                              weighting = weighting, weights = weights,
-                             se_floor = se_floor)
+                             se_floor = se_floor,
+                             d_labels = d_info$original_levels)
 
   test_name <- if (core$multivalued) "Sun (2023)" else "Kitagawa (2015)"
   structure(

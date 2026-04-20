@@ -41,15 +41,29 @@
 #' @export
 iv_check <- function(model, tests = "all", alpha = 0.05,
                      n_boot = 1000, ...) {
-  applicable <- detect_applicable_tests(model)
-
-  if (identical(tests, "all")) {
-    tests <- applicable
-  } else {
+  # Validate test names before probing the model, so a mistyped name
+  # produces a clean "Unknown test name" error even for inputs that
+  # cannot be interrogated.
+  if (!identical(tests, "all")) {
     unknown <- setdiff(tests, c("kitagawa", "mw", "testjfe"))
     if (length(unknown) > 0L) {
       cli::cli_abort("Unknown test name{?s}: {.val {unknown}}.")
     }
+  }
+
+  applicable <- detect_applicable_tests(model)
+
+  if (length(applicable) == 0L) {
+    cli::cli_abort(c(
+      "Could not detect an applicable IV-validity test for this model.",
+      "i" = "The model does not appear to be an IV model, or the treatment is not binary.",
+      "i" = "Supported: {.fn fixest::feols} with formula {.code y ~ x | d ~ z} or {.fn ivreg::ivreg}."
+    ))
+  }
+
+  if (identical(tests, "all")) {
+    tests <- applicable
+  } else {
     dropped <- setdiff(tests, applicable)
     if (length(dropped) > 0L) {
       cli::cli_warn(
@@ -65,7 +79,26 @@ iv_check <- function(model, tests = "all", alpha = 0.05,
                                     alpha = alpha, ...)
   }
   if ("mw" %in% tests) {
-    results$mw <- iv_mw(model, n_boot = n_boot, alpha = alpha, ...)
+    # iv_mw conditional path only supports a single covariate in v0.1.0.
+    # When iv_check is handed a fitted model with multiple exogenous
+    # covariates, run iv_mw in unconditional mode by calling the default
+    # method on extracted vectors (the fitted-model dispatch would pull
+    # the exogenous x matrix and trigger the multivariate-x abort). The
+    # conditional test is available to users who invoke iv_mw() directly
+    # with their preferred single covariate.
+    used_unconditional <- FALSE
+    if (inherits(model, c("fixest", "ivreg"))) {
+      yz <- tryCatch(extract_iv_data(model), error = function(e) NULL)
+      if (!is.null(yz) && !is.null(yz$x) &&
+          is.matrix(yz$x) && ncol(yz$x) > 1L) {
+        results$mw <- iv_mw(yz$y, d = yz$d, z = yz$z,
+                            n_boot = n_boot, alpha = alpha, ...)
+        used_unconditional <- TRUE
+      }
+    }
+    if (!used_unconditional) {
+      results$mw <- iv_mw(model, n_boot = n_boot, alpha = alpha, ...)
+    }
   }
   if ("testjfe" %in% tests && "testjfe" %in% applicable) {
     results$testjfe <- iv_testjfe(model, n_boot = n_boot,
@@ -102,12 +135,14 @@ detect_applicable_tests <- function(model) {
   yz <- tryCatch(extract_iv_data(model), error = function(e) NULL)
   if (is.null(yz)) return(character(0))
   is_binary_d <- length(unique(stats::na.omit(yz$d))) == 2L
+  is_binary_z <- !is.null(yz$z) &&
+    length(unique(stats::na.omit(yz$z))) == 2L
   is_judge    <- !is.null(yz$z) &&
     length(unique(stats::na.omit(yz$z))) > 2L &&
     is_binary_d
   out <- character(0)
   if (is_binary_d) out <- c(out, "kitagawa", "mw")
-  if (is_judge)    out <- c(out, "testjfe")
+  if (is_judge) out <- c(out, "testjfe")
   out
 }
 

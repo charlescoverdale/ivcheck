@@ -113,8 +113,9 @@ instrument-level pairs \verb{(z_low, z_high)}, treatment status
 \verb{d in \{0, 1\}}, and intervals \verb{[y, y']} with \verb{y <= y'}, of the
 positive-part interval-probability difference normalised by the
 binomial-mixture plug-in standard error:
-\verb{T_n = sqrt(n_low * n_high / n) * max [P([y, y'], d | z_low)}
-\verb{- P([y, y'], d | z_high)]^+ / sigma_hat}. The sign flips for
+\code{T_n = sqrt(n_low * n_high / (n_low + n_high))}
+\verb{* max [P([y, y'], d | z_low) - P([y, y'], d | z_high)]^+ / sigma_hat}.
+(The denominator is the pair total, not the full sample size.) The sign flips for
 \code{d = 0}. Instrument levels are pre-ordered by first-stage
 \code{E_hat[D | Z]} so the inequalities are one-sided and \code{T_n >= 0}.
 The implementation evaluates the sup on a quantile grid of observed
@@ -153,7 +154,6 @@ of Local Average Treatment Effects. \emph{Econometrica}, 62(2), 467-475.
 one-shot wrapper that runs all applicable tests.
 
 Other iv_tests: 
-\code{\link{iv_hm}()},
 \code{\link{iv_mw}()},
 \code{\link{iv_testjfe}()}
 }

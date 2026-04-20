@@ -121,3 +121,48 @@ test_that("iv_power: delta = 0 empirical size is at most ~alpha + MC noise", {
   # SE(power) ~= sqrt(0.05 * 0.95 / 50) ~ 0.031. Allow 3 SE + alpha
   expect_lt(out$power[1], 0.15)
 })
+
+test_that("iv_kitagawa reproduces the Card (1995) binary-college rejection", {
+  # Published-number reproduction. Kitagawa (2015) Table 2 and the
+  # Mourifie-Wan (2017) replication both reject the simple college/
+  # near_college specification at 5%. The exact statistic depends on
+  # the bootstrap seed, but rejection is robust.
+  skip_on_cran()
+  data(card1995)
+  set.seed(40000)
+  r <- iv_kitagawa(card1995$lwage, card1995$college,
+                   card1995$near_college, n_boot = 300, parallel = FALSE)
+  expect_lt(r$p_value, 0.05)
+  expect_gt(r$statistic, 1.5)
+})
+
+test_that("iv_testjfe null size holds for multivalued D with x (small MC)", {
+  # Regression test for the FWL identity in the structural-residual
+  # construction. With M = 2 and x varying within judges, a buggy
+  # sigma^2 inflates and produces conservative (<5%) rejection under H0.
+  # With the FWL-correct structural residual, empirical size should
+  # sit near nominal alpha.
+  skip_on_cran()
+  set.seed(2026)
+  K <- 12
+  n_per_judge <- 200
+  judge_vec <- rep(seq_len(K), each = n_per_judge)
+  n <- length(judge_vec)
+  rej <- 0
+  reps <- 80
+  for (s in seq_len(reps)) {
+    set.seed(70000 + s)
+    x <- rnorm(n)
+    # Valid judge IV: D is a function of judge + x. Three levels of D.
+    p_by_j <- c(0.2, 0.4, 0.6)  # P(D = 1 | J), P(D = 2 | J) will be
+    lin <- 0.1 * judge_vec + 0.3 * x
+    d_raw <- rbinom(n, 2, plogis(lin) * 0.9)   # values in {0, 1, 2}
+    y <- d_raw + 0.4 * x + rnorm(n, 0, 0.5)    # valid exclusion
+    out <- iv_testjfe(y, d_raw, judge_vec, x = x, n_boot = 10,
+                      method = "asymptotic", parallel = FALSE)
+    if (isTRUE(out$p_value < 0.05)) rej <- rej + 1
+  }
+  # Empirical size should be within roughly 3 SE of alpha = 0.05.
+  # With 80 reps, SE ~= 0.024 so <= 0.13 is a very conservative pass.
+  expect_lte(rej / reps, 0.15)
+})

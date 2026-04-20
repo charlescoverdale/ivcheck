@@ -139,6 +139,13 @@ iv_mw.default <- function(object, d, z, x = NULL,
   if (nrow(x_mat) != n) {
     cli::cli_abort("{.arg x} must have the same number of rows as {.arg y}.")
   }
+  if (ncol(x_mat) > 1L) {
+    cli::cli_abort(c(
+      "{.fn iv_mw} v0.1.0 supports a single conditioning covariate.",
+      i = "Multivariate conditioning requires a tensor-product basis (planned for v0.2.0).",
+      i = "Workaround: condition on the covariate most plausibly driving heterogeneity in compliance, or reduce {.arg x} to a single pre-computed index."
+    ))
+  }
 
   core <- mw_clr_test(y, d_num, z_num, x_mat, n_boot, parallel,
                       basis_order = basis_order,

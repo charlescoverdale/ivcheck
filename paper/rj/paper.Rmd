@@ -227,13 +227,15 @@ Figure \ref{fig:pairwise} shows the pairwise Wald LATE matrix for the violation 
 
 ## Limitations
 
-Five limitations apply.
+Seven limitations apply.
 
 1. \CRANpkg{ivcheck} is a testing package, not an estimator. Use \CRANpkg{fixest} or \CRANpkg{ivreg} for the IV estimation itself; \CRANpkg{ivcheck} operates on the fitted model or on raw vectors.
 2. Version 0.1.0 supports discrete instruments only. Continuous `Z` must be discretised into bins (quartiles or quintiles) before passing to `iv_kitagawa` or `iv_mw`, at modest cost in power. A nonparametric continuous-`Z` extension is on the v0.2.0 roadmap.
 3. Fuzzy regression discontinuity has a dedicated test [@arai2022] that is not yet in \CRANpkg{ivcheck}. Its different infrastructure (running variable, cutoff, local-polynomial bandwidth, bias correction) does not fit the current spine of S3 dispatch on fitted IV models, so a dedicated `iv_frd()` function is deferred to v0.2.0.
 4. `iv_testjfe` implements the asymptotic chi-squared linearity test that corresponds to the @frandsen2023 statistic under a linear outcome-propensity specification. The full flexible-series test with the bounded-slope moment-inequality restriction is planned for v0.2.0. Users needing the published test with the flexible basis should run Frandsen's Stata `testjfe` module in the interim.
-5. Rejection of any of the three tests is evidence of violation but does not localise the failed assumption. Non-rejection is evidence of no detectable violation at level `alpha`, not proof of validity. Report non-rejection as such.
+5. Fixed-effects IV models are not supported in v0.1.0. Calling `iv_kitagawa`, `iv_mw`, or `iv_testjfe` on a `fixest` model with the `| FE |` component aborts with a clear error. The discrete-Z tests operate on the raw `(Y, D, Z)` joint distribution, and residualising on fixed effects destroys the discrete structure of `Z`. The documented workaround is to pre-demean `Y` and `D` within each FE cell, keep `Z` discrete, and call the default method on the resulting vectors. A stratified-by-FE variant is on the v0.2.0 roadmap.
+6. The conditional path of `iv_mw` supports a single covariate. Users passing a matrix of covariates receive a clear error pointing to the tensor-product-basis extension planned for v0.2.0. The current recommendation is to condition on the covariate most plausibly driving heterogeneity in compliance.
+7. Rejection of any of the three tests is evidence of violation but does not localise the failed assumption. Non-rejection is evidence of no detectable violation at level `alpha`, not proof of validity. Report non-rejection as such.
 
 ## Conclusion
 

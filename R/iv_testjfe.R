@@ -100,7 +100,9 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
   method <- match.arg(method)
   y <- object
   validate_numeric(y, "y")
-  d_num <- validate_treatment_discrete(d, "d", max_levels = 20L)
+  d_info <- validate_treatment_discrete(d, "d", max_levels = 20L)
+  d_num <- d_info$d_num
+  d_labels <- d_info$original_levels  # user-facing D values
   z_num <- validate_discrete(z, "z", max_levels = 500L)
   n <- as.integer(check_lengths(y, d_num, z_num))
 
@@ -167,9 +169,16 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
       sum(w[idx] * d_num[idx]) / sum(w[idx])
     }, numeric(1))
     P_design <- cbind(1, p_j)
+    ind_resid_mat <- NULL  # binary path uses residualised d_num directly
   } else {
     P_design <- matrix(0, nrow = K, ncol = M + 1L)
     P_design[, 1L] <- 1
+    # Retain the per-observation residualised indicators so the structural
+    # residual u_i can use them (FWL). Using raw indicators against a
+    # beta_hat estimated on residualised regressors inflates sigma^2 and
+    # makes the chi^2 test conservative when covariates have within-judge
+    # variation.
+    ind_resid_mat <- matrix(0, nrow = n, ncol = M)
     for (m in seq_len(M)) {
       dv <- d_vals[m + 1L]
       ind <- as.numeric(d_num_raw == dv)
@@ -177,6 +186,7 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
         design <- cbind(1, x_mat)
         ind <- as.numeric(stats::residuals(stats::lm.fit(design, ind)))
       }
+      ind_resid_mat[, m] <- ind
       P_design[, m + 1L] <- vapply(judges, function(j) {
         idx <- which(z_num == j)
         sum(w[idx] * ind[idx]) / sum(w[idx])
@@ -196,16 +206,22 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
   resid_j <- mu_j - mu_fit
 
   # Structural residuals u_i for pooled variance: remove the fitted
-  # marginal effects of each treatment level.
+  # marginal effects of each treatment level. For multivalued D with
+  # covariates we use the per-observation residualised indicators that
+  # P_design was built from, preserving the FWL identity between the
+  # OLS fit and the residualised structural equation.
   if (M == 1L) {
     u_i <- y - alpha_hat - beta_vec * d_num
-  } else {
+  } else if (is.null(ind_resid_mat)) {
     beta_full <- numeric(length(d_vals))
     beta_full[match(d_vals[-1L], d_vals)] <- beta_vec
-    # d_num_raw has the discrete levels; u_i uses the raw indicators
-    # plus the residualised y.
     idx_map <- match(d_num_raw, d_vals)
     u_i <- y - alpha_hat - beta_full[idx_map]
+  } else {
+    u_i <- y - alpha_hat
+    for (m in seq_len(M)) {
+      u_i <- u_i - beta_vec[m] * ind_resid_mat[, m]
+    }
   }
   ss_within <- 0
   for (j_idx in seq_len(K)) {
@@ -374,7 +390,7 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
       worst_pair = worst_pair,
       coef = if (M == 1L) c(intercept = alpha_hat, slope = beta_hat)
              else c(intercept = alpha_hat, stats::setNames(beta_vec,
-                    paste0("beta_d", d_vals[-1L]))),
+                    paste0("beta_d", d_labels[-1L]))),
       n_judges = K,
       n_treatment_levels = M + 1L,
       n = n,

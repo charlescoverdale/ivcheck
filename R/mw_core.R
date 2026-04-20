@@ -56,7 +56,13 @@ mw_clr_test <- function(y, d_num, z_num, x_mat, n_boot, parallel,
     Bk <- B[idx, , drop = FALSE]
     BtB_inv <- tryCatch(
       solve(crossprod(Bk) + diag(1e-8, P)),
-      error = function(e) diag(1e-4, P)
+      error = function(e) {
+        cli::cli_abort(c(
+          "Series basis is rank-deficient in the Z = {z_levels[k]} cell (n = {length(idx)}, basis_order = {basis_order}).",
+          i = "Reduce {.arg basis_order} or ensure {.arg x} has adequate within-cell variation.",
+          i = "Fewer than {.val {P}} distinct values of {.arg x} within a {.arg z} level forces this error."
+        ))
+      }
     )
     BtB_inv_by_k[[k]] <- BtB_inv
     Xproj <- BtB_inv %*% t(Bk)
@@ -92,7 +98,7 @@ mw_clr_test <- function(y, d_num, z_num, x_mat, n_boot, parallel,
         V <- BtB_inv %*% Omega %*% BtB_inv
         # Quadratic form diag(B_at_xg %*% V %*% t(B_at_xg))
         qf <- rowSums((B_at_xg %*% V) * B_at_xg)
-        SE_on_grid[, g, k, d_idx] <- sqrt(pmax(qf, 0)) + se_floor
+        SE_on_grid[, g, k, d_idx] <- pmax(sqrt(pmax(qf, 0)), se_floor)
       }
     }
   }

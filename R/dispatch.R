@@ -29,6 +29,13 @@ extract_iv_data.fixest <- function(object) {
       )
     )
   }
+  if (length(object$fixef_vars) > 0L) {
+    cli::cli_abort(c(
+      "{.fn ivcheck} v0.1.0 does not support models with fixed effects.",
+      i = "The discrete-Z tests of Kitagawa / Mourifie-Wan / FLL operate on the raw (Y, D, Z) joint distribution; residualising on fixed effects destroys the discrete structure of Z.",
+      i = "Workaround: pre-demean {.var Y} and {.var D} within each FE cell, keep {.var Z} discrete, and call the default method on the resulting vectors."
+    ))
+  }
   endo_names <- object$iv_endo_names
   inst_names <- object$iv_inst_names
   if (length(endo_names) != 1L) {
