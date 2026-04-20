@@ -4,6 +4,13 @@ First CRAN submission. Three falsification tests for the identifying
 assumptions of instrumental variable estimation of the local average
 treatment effect, plus a one-shot wrapper.
 
+For known deviations from the published tests (richer family of
+ordered-multivalued inequalities than Sun 2023 Lemma 2.1; linearity-test
+form of Frandsen, Lefgren, and Leslie 2023; empirical `se_floor = 0.15`
+versus Kitagawa 2015's 0.05-0.10 recommendation), see the "Notes on
+fidelity" sub-section of the README and the companion R Journal paper
+at `paper/rj/paper.Rmd`.
+
 ## New functions
 
 * `iv_kitagawa()`: Kitagawa (2015) variance-weighted Kolmogorov-Smirnov

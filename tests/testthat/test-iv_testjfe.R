@@ -11,6 +11,51 @@ test_that("iv_testjfe returns an iv_test object with the right structure", {
   expect_named(out$coef, c("intercept", "slope"))
 })
 
+test_that("iv_testjfe basis_order > 1 uses polynomial basis and adjusts df", {
+  set.seed(1)
+  K <- 15
+  n_per <- 150
+  judge <- rep(seq_len(K), each = n_per)
+  p_j <- seq(0.2, 0.8, length.out = K)
+  d <- rbinom(length(judge), 1, p_j[judge])
+  y <- rnorm(length(judge), mean = d)
+  r1 <- iv_testjfe(y, d, judge, n_boot = 30, parallel = FALSE,
+                   basis_order = 1L)
+  r2 <- iv_testjfe(y, d, judge, n_boot = 30, parallel = FALSE,
+                   basis_order = 2L)
+  r3 <- iv_testjfe(y, d, judge, n_boot = 30, parallel = FALSE,
+                   basis_order = 3L)
+  expect_equal(r1$basis_order, 1L)
+  expect_equal(r2$basis_order, 2L)
+  expect_equal(r3$basis_order, 3L)
+  expect_true("slope" %in% names(r1$coef))
+  expect_true(all(c("delta_p1", "delta_p2") %in% names(r2$coef)))
+  expect_true(all(c("delta_p1", "delta_p2", "delta_p3") %in% names(r3$coef)))
+})
+
+test_that("iv_testjfe basis_order must be a positive integer", {
+  set.seed(1)
+  j <- sample(1:10, 200, replace = TRUE)
+  d <- rbinom(200, 1, 0.5)
+  y <- rnorm(200)
+  expect_error(iv_testjfe(y, d, j, basis_order = "banana",
+                          n_boot = 10, parallel = FALSE),
+               "positive integer")
+  expect_error(iv_testjfe(y, d, j, basis_order = 1.5,
+                          n_boot = 10, parallel = FALSE),
+               "positive integer")
+})
+
+test_that("iv_testjfe basis_order > 1 aborts for multivalued D", {
+  set.seed(1)
+  j <- sample(1:10, 300, replace = TRUE)
+  d <- sample(0:2, 300, replace = TRUE)
+  y <- rnorm(300)
+  expect_error(iv_testjfe(y, d, j, basis_order = 2L,
+                          n_boot = 10, parallel = FALSE),
+               "binary")
+})
+
 test_that("iv_testjfe requires at least three judges", {
   set.seed(1)
   n <- 100

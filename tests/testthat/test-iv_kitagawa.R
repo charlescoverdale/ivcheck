@@ -76,6 +76,39 @@ test_that("iv_kitagawa multiplier = gaussian runs and returns sensible output", 
   expect_equal(out$multiplier, "gaussian")
 })
 
+test_that("iv_kitagawa handles ties in Y without breaking", {
+  # Ties in Y arise often in applied work (rounded wages, survey
+  # categories). The empirical CDF on a ties-rich support should still
+  # produce a well-defined statistic and a p-value in [0, 1].
+  set.seed(1)
+  n <- 600
+  z <- sample(0:1, n, replace = TRUE)
+  d <- rbinom(n, 1, 0.3 + 0.4 * z)
+  # Force 20 percent of Y values to be identical at zero.
+  y <- rnorm(n, mean = d)
+  y[sample.int(n, size = n %/% 5)] <- 0
+  expect_equal(sum(y == 0) / n, 0.2, tolerance = 0.05)
+
+  out <- iv_kitagawa(y, d, z, n_boot = 80, parallel = FALSE)
+  expect_s3_class(out, "iv_test")
+  expect_true(is.finite(out$statistic) && out$statistic >= 0)
+  expect_true(is.finite(out$p_value) &&
+                out$p_value >= 0 && out$p_value <= 1)
+  # Stat should be robust across two seeds on the same data.
+  set.seed(7); out2 <- iv_kitagawa(y, d, z, n_boot = 80, parallel = FALSE)
+  expect_equal(out$statistic, out2$statistic, tolerance = 1e-10)
+})
+
+test_that("iv_kitagawa warns when smallest Z cell is tiny", {
+  set.seed(1)
+  # z == 0 has only 10 obs, z == 1 has 290
+  z <- c(rep(0, 10), rep(1, 290))
+  d <- rbinom(300, 1, 0.3 + 0.4 * z)
+  y <- rnorm(300, mean = d)
+  expect_warning(iv_kitagawa(y, d, z, n_boot = 30, parallel = FALSE),
+                 "Z cell")
+})
+
 test_that("iv_kitagawa multiplier = mammen runs and returns sensible output", {
   set.seed(1)
   n <- 300

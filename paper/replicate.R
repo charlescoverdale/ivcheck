@@ -147,6 +147,21 @@ cat(sprintf("iv_mw stat:       %.6f\n", r_mw$statistic))
 cat(sprintf("Numerically equal: %s\n",
             all.equal(r_k$statistic, r_mw$statistic)))
 
+cat("\n===== Session information =====\n")
+cat("R version: ", R.version.string, "\n", sep = "")
+cat("Platform : ", R.version$platform, "\n", sep = "")
+cat("OS       : ", Sys.info()["sysname"], " ", Sys.info()["release"], "\n",
+    sep = "")
+cat("Locale   : ", Sys.getlocale("LC_CTYPE"), "\n", sep = "")
+cat("ivcheck  : ", as.character(utils::packageVersion("ivcheck")), "\n",
+    sep = "")
+cat("ggplot2  : ", as.character(utils::packageVersion("ggplot2")), "\n",
+    sep = "")
+cat("RNG      : ", paste(RNGkind(), collapse = " / "), "\n", sep = "")
+cat("Sys.time : ", format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"), "\n",
+    sep = "")
+cat("--- end session info ---\n")
+
 sink()
 
 # =========================================================================

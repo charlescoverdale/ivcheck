@@ -95,6 +95,25 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
   z_levels <- raw_levels[ord]
   K <- length(z_levels)
 
+  # Defensive check: the multiplier bootstrap and the plug-in SE
+  # estimator can be ill-conditioned when some Z cells have very few
+  # observations. Warn if the smallest cell is below 30; abort if
+  # below 5.
+  n_per_cell <- vapply(z_levels,
+                       function(zk) sum(z_num == zk), integer(1))
+  if (min(n_per_cell) < 5L) {
+    cli::cli_abort(c(
+      "Smallest Z cell has {min(n_per_cell)} observations; bootstrap is unreliable.",
+      i = "Consider pooling neighbouring Z levels or collecting more data."
+    ))
+  }
+  if (min(n_per_cell) < 30L) {
+    cli::cli_warn(c(
+      "Smallest Z cell has {min(n_per_cell)} observations (< 30).",
+      i = "Bootstrap p-values and the plug-in SE may be ill-conditioned at this cell size. Results should be treated with caution."
+    ))
+  }
+
   # Evaluation grid. Per Kitagawa (2015) eq. 2.1 the statistic is a sup
   # over intervals [y, y'] with y <= y'. For efficiency we evaluate on a
   # quantile grid; equivalent under Kitagawa's theorem 2.1 because the
@@ -159,6 +178,42 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
         d_thr_up <- d_vals[ell + 1L]
         ind_ge <- (d_sub >= d_thr_up)
         F_arr[, k, L + ell] <- colSums(w_sub * leY_sub * ind_ge) / sw_k
+      }
+    }
+  }
+
+  # Marginal P(D <= c | Z) stochastic dominance (Sun 2023 equation 10,
+  # second inequality). Only meaningful for the ordered multivalued
+  # path: for each non-trivial cumulative threshold c and adjacent
+  # pair (z_k, z_{k+1}), we test
+  #   P(D <= c | z_{k+1}) - P(D <= c | z_k) <= 0.
+  # For binary D and unordered multivalued D this machinery is idle.
+  do_marginal_sd <- multivalued && !unordered
+  marg_planes <- if (do_marginal_sd) L else 0L
+  # p_marg[k, m] = P_hat(D <= d_vals[m] | Z = z_k) for m = 1..L.
+  p_marg <- NULL
+  se_marg <- NULL
+  if (do_marginal_sd) {
+    p_marg <- matrix(0, nrow = K, ncol = marg_planes)
+    for (k in seq_len(K)) {
+      idx <- idx_by_z[[k]]
+      if (length(idx) == 0L) next
+      sw_k <- sum(w[idx])
+      for (m in seq_len(marg_planes)) {
+        p_marg[k, m] <- sum(w[idx] * (d_num[idx] <= d_vals[m])) / sw_k
+      }
+    }
+    # Plug-in binomial-mixture SE per adjacent pair per threshold.
+    se_marg <- array(se_floor, dim = c(K - 1L, marg_planes))
+    for (k in seq_len(K - 1L)) {
+      for (m in seq_len(marg_planes)) {
+        p_lo <- p_marg[k, m]
+        p_hi <- p_marg[k + 1L, m]
+        total_eff <- n_z_eff[k] + n_z_eff[k + 1L]
+        w_lo <- n_z_eff[k + 1L] / total_eff
+        w_hi <- n_z_eff[k] / total_eff
+        v <- w_lo * p_lo * (1 - p_lo) + w_hi * p_hi * (1 - p_hi)
+        se_marg[k, m] <- max(sqrt(max(v, 0)), se_floor)
       }
     }
   }
@@ -262,7 +317,36 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
   }
   dirs <- direction_info()
 
-  compute_stat <- function(F_arr_local) {
+  # Marginal SD contribution to the statistic. Takes a K x marg_planes
+  # matrix of per-cell cumulative probabilities; used for both the
+  # observed statistic (with p_marg) and the bootstrap (with a centred
+  # perturbation). Returns the maximum contribution and, when binding,
+  # a description of the worst pair/threshold.
+  compute_marg_stat <- function(p_mat) {
+    if (!do_marginal_sd) return(list(stat = 0, binding = NULL))
+    best_m <- 0
+    binding_m <- NULL
+    for (k in seq_len(K - 1L)) {
+      pair_scale <- sqrt(n_z_eff[k] * n_z_eff[k + 1L] /
+                           (n_z_eff[k] + n_z_eff[k + 1L]))
+      for (m in seq_len(marg_planes)) {
+        diff <- p_mat[k + 1L, m] - p_mat[k, m]  # <= 0 under H0
+        v <- pair_scale * diff / se_marg[k, m]
+        if (v > best_m) {
+          best_m <- v
+          binding_m <- list(
+            z_low = z_levels[k], z_high = z_levels[k + 1L],
+            direction = paste0("D <= ", label_for(m)),
+            y_lower = NA_real_, y_upper = NA_real_,
+            marginal = TRUE
+          )
+        }
+      }
+    }
+    list(stat = best_m, binding = binding_m)
+  }
+
+  compute_stat <- function(F_arr_local, p_marg_local = p_marg) {
     best <- 0
     binding_local <- NULL
     if (K < 2L) return(list(stat = 0, binding = NULL))
@@ -331,6 +415,16 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
         }
       }
     }
+    # Add marginal P(D <= c | Z) stochastic dominance (Sun eq. 10,
+    # second inequality) to the sup if applicable. Uses the supplied
+    # p_marg_local matrix so bootstrap can inject its own perturbation.
+    if (do_marginal_sd) {
+      marg <- compute_marg_stat(p_marg_local)
+      if (marg$stat > best) {
+        best <- marg$stat
+        binding_local <- marg$binding
+      }
+    }
     list(stat = best, binding = binding_local)
   }
 
@@ -382,6 +476,21 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
     }
   )
 
+  # Centred indicators for the marginal P(D <= c | Z) bootstrap:
+  # marg_centred[i, m] = I{D_i <= d_vals[m]} - P_hat(D <= d_vals[m] | Z_i).
+  marg_centred <- NULL
+  if (do_marginal_sd) {
+    marg_centred <- matrix(0, nrow = n, ncol = marg_planes)
+    for (k in seq_len(K)) {
+      idx <- idx_by_z[[k]]
+      if (length(idx) == 0L) next
+      for (m in seq_len(marg_planes)) {
+        marg_centred[idx, m] <- w[idx] *
+          ((d_num[idx] <= d_vals[m]) - p_marg[k, m])
+      }
+    }
+  }
+
   one_boot <- function() {
     W <- draw_multiplier(n)
     F_star <- array(0, dim = c(G, K, n_L_planes))
@@ -394,7 +503,18 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
           crossprod(W[idx], C[idx, , drop = FALSE])[1, ] / n_z_eff[k]
       }
     }
-    compute_stat(F_star)$stat
+    p_marg_star <- NULL
+    if (do_marginal_sd) {
+      p_marg_star <- matrix(0, nrow = K, ncol = marg_planes)
+      for (k in seq_len(K)) {
+        idx <- idx_by_z[[k]]
+        if (length(idx) == 0L) next
+        p_marg_star[k, ] <-
+          crossprod(W[idx], marg_centred[idx, , drop = FALSE])[1, ] /
+          n_z_eff[k]
+      }
+    }
+    compute_stat(F_star, p_marg_local = p_marg_star)$stat
   }
 
   use_parallel <- isTRUE(parallel) && .Platform$OS.type == "unix" && n_boot >= 100L

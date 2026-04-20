@@ -19,6 +19,7 @@ iv_testjfe(object, ...)
   alpha = 0.05,
   method = c("asymptotic", "bootstrap"),
   weights = NULL,
+  basis_order = 1L,
   parallel = TRUE,
   ...
 )
@@ -30,6 +31,7 @@ iv_testjfe(object, ...)
   alpha = 0.05,
   method = c("asymptotic", "bootstrap"),
   weights = NULL,
+  basis_order = 1L,
   parallel = TRUE,
   ...
 )
@@ -41,6 +43,7 @@ iv_testjfe(object, ...)
   alpha = 0.05,
   method = c("asymptotic", "bootstrap"),
   weights = NULL,
+  basis_order = 1L,
   parallel = TRUE,
   ...
 )
@@ -66,17 +69,27 @@ judge means are computed.}
 \item{alpha}{Significance level for the returned verdict. Default 0.05.}
 
 \item{method}{Reference distribution for the p-value. \code{"asymptotic"}
-(default) uses the chi-squared with \code{K - 2} degrees of freedom.
-\code{"bootstrap"} uses the multiplier bootstrap of the restricted-
-model residual process. Asymptotic is fast and accurate for
-moderate \code{K}; bootstrap is preferred for small \code{K} or if
-errors are far from normal.}
+(default) uses the chi-squared with \code{K - (basis_order + 1)}
+degrees of freedom. \code{"bootstrap"} uses the multiplier bootstrap
+of the restricted-model residual process. Asymptotic is fast and
+accurate for moderate \code{K}; bootstrap is preferred for small \code{K}
+or if errors are far from normal.}
 
 \item{weights}{Optional survey weights. A non-negative numeric vector
 of length equal to the sample size. Scaled internally so the mean
 weight is 1.0 (preserving effective sample-size interpretation).
 Applied to the empirical CDFs, the bootstrap multiplier process,
 and the variance-weighted standard errors.}
+
+\item{basis_order}{Order of the polynomial basis used to approximate
+the outcome / propensity function \code{phi(p)} in Frandsen-Lefgren-Leslie
+(2023) step 1. Default \code{1L} reduces to the Sargan-Hansen
+overidentification form, which imposes constant treatment effects.
+Values above 1 relax this to \verb{phi(p) = delta_0 + delta_1 p + delta_2 p^2 + ... + delta_m p^m} and test the joint-zero
+restriction on judge residuals under the richer fit. Only binary
+treatment is supported when \code{basis_order > 1}. The slope-bounded
+moment-inequality component of the FLL test is not implemented in
+v0.1.0 (deferred to v0.2.0).}
 
 \item{parallel}{Logical. Run bootstrap replications in parallel on
 POSIX systems via \link[parallel:mclapply]{parallel::mclapply}. Default \code{TRUE}.}

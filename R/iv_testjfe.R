@@ -16,11 +16,21 @@
 #'   If supplied, `y` and `d` are residualised on `x` before the per-
 #'   judge means are computed.
 #' @param method Reference distribution for the p-value. `"asymptotic"`
-#'   (default) uses the chi-squared with `K - 2` degrees of freedom.
-#'   `"bootstrap"` uses the multiplier bootstrap of the restricted-
-#'   model residual process. Asymptotic is fast and accurate for
-#'   moderate `K`; bootstrap is preferred for small `K` or if
-#'   errors are far from normal.
+#'   (default) uses the chi-squared with `K - (basis_order + 1)`
+#'   degrees of freedom. `"bootstrap"` uses the multiplier bootstrap
+#'   of the restricted-model residual process. Asymptotic is fast and
+#'   accurate for moderate `K`; bootstrap is preferred for small `K`
+#'   or if errors are far from normal.
+#' @param basis_order Order of the polynomial basis used to approximate
+#'   the outcome / propensity function `phi(p)` in Frandsen-Lefgren-Leslie
+#'   (2023) step 1. Default `1L` reduces to the Sargan-Hansen
+#'   overidentification form, which imposes constant treatment effects.
+#'   Values above 1 relax this to `phi(p) = delta_0 + delta_1 p +
+#'   delta_2 p^2 + ... + delta_m p^m` and test the joint-zero
+#'   restriction on judge residuals under the richer fit. Only binary
+#'   treatment is supported when `basis_order > 1`. The slope-bounded
+#'   moment-inequality component of the FLL test is not implemented in
+#'   v0.1.0 (deferred to v0.2.0).
 #'
 #' @return An object of class `iv_test`; see [iv_kitagawa] for element
 #'   descriptions. Additional elements:
@@ -107,8 +117,14 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
                                alpha = 0.05,
                                method = c("asymptotic", "bootstrap"),
                                weights = NULL,
+                               basis_order = 1L,
                                parallel = TRUE, ...) {
   method <- match.arg(method)
+  if (!is.numeric(basis_order) || length(basis_order) != 1L ||
+      basis_order < 1L || basis_order != as.integer(basis_order)) {
+    cli::cli_abort("{.arg basis_order} must be a positive integer.")
+  }
+  basis_order <- as.integer(basis_order)
   y <- object
   validate_numeric(y, "y")
   d_info <- validate_treatment_discrete(d, "d", max_levels = 20L)
@@ -174,12 +190,32 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
     idx <- which(z_num == j)
     sum(w[idx] * y[idx]) / sum(w[idx])
   }, numeric(1))
+  if (basis_order > 1L && M > 1L) {
+    cli::cli_abort(c(
+      "{.arg basis_order > 1} is only supported for binary treatment in v0.1.0.",
+      i = "Multivalued D with polynomial basis requires a tensor-product basis (planned v0.2.0)."
+    ))
+  }
+
   if (M == 1L) {
     p_j <- vapply(judges, function(j) {
       idx <- which(z_num == j)
       sum(w[idx] * d_num[idx]) / sum(w[idx])
     }, numeric(1))
-    P_design <- cbind(1, p_j)
+    # Flexible basis (FLL 2023 equation 5 / 6): the fit component of the
+    # FLL test generalises the linear WLS above to an arbitrary series
+    # approximation phi(p) = delta_0 S_0(p) + ... + delta_m S_m(p). We
+    # use polynomial bases here; b-splines could be added later. With
+    # basis_order = 1 this reduces to the Sargan-Hansen form in the
+    # paper's equation (6).
+    if (basis_order == 1L) {
+      P_design <- cbind(1, p_j)
+    } else {
+      P_design <- matrix(1, nrow = K, ncol = basis_order + 1L)
+      for (p_idx in seq_len(basis_order)) {
+        P_design[, p_idx + 1L] <- p_j^p_idx
+      }
+    }
     ind_resid_mat <- NULL  # binary path uses residualised d_num directly
   } else {
     P_design <- matrix(0, nrow = K, ncol = M + 1L)
@@ -217,12 +253,26 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
   resid_j <- mu_j - mu_fit
 
   # Structural residuals u_i for pooled variance: remove the fitted
-  # marginal effects of each treatment level. For multivalued D with
-  # covariates we use the per-observation residualised indicators that
-  # P_design was built from, preserving the FWL identity between the
-  # OLS fit and the residualised structural equation.
+  # marginal effects of each treatment level. For binary D with the
+  # flexible polynomial basis we evaluate phi at each observation's
+  # estimated judge propensity and subtract; this is FLL (2023) step
+  # 1's u_i = Y_i - phi_hat(p_hat(J_i)). For multivalued D with
+  # covariates we use the per-observation residualised indicators
+  # that P_design was built from, preserving the FWL identity between
+  # the OLS fit and the residualised structural equation.
   if (M == 1L) {
-    u_i <- y - alpha_hat - beta_vec * d_num
+    if (basis_order == 1L) {
+      u_i <- y - alpha_hat - beta_vec * d_num
+    } else {
+      # Evaluate phi_hat(p_hat(J_i)) = sum_k delta_k * p_hat(J_i)^k at
+      # each observation. d_num was residualised on x earlier (if any),
+      # so using it as the "effective dose" matches the FWL identity.
+      phi_at_i <- alpha_hat
+      for (p_idx in seq_len(basis_order)) {
+        phi_at_i <- phi_at_i + beta_vec[p_idx] * d_num^p_idx
+      }
+      u_i <- y - phi_at_i
+    }
   } else if (is.null(ind_resid_mat)) {
     beta_full <- numeric(length(d_vals))
     beta_full[match(d_vals[-1L], d_vals)] <- beta_vec
@@ -251,7 +301,11 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
     NA_real_
   }
 
-  df_test <- K - (M + 1L)
+  df_test <- if (M == 1L && basis_order > 1L) {
+    K - (basis_order + 1L)
+  } else {
+    K - (M + 1L)
+  }
   p_value_asy <- if (is.finite(T_n) && df_test > 0L) {
     1 - stats::pchisq(T_n, df = df_test)
   } else {
@@ -259,11 +313,13 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
   }
 
   # Legacy scalar p_j is used by the binary pairwise diagnostics below.
-  if (M == 1L) {
+  # For multivalued D and for basis_order > 1 the concept of a single
+  # LATE "slope" does not apply; diagnostics are disabled in those cases.
+  if (M == 1L && basis_order == 1L) {
     beta_hat <- beta_vec
   } else {
     beta_hat <- NA_real_
-    p_j <- rep(NA_real_, K)
+    if (M > 1L) p_j <- rep(NA_real_, K)
   }
 
   # Multiplier bootstrap over per-judge (mu, P_design) deviations. Works
@@ -280,10 +336,18 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
     P_star <- matrix(0, nrow = K, ncol = ncol(P_design))
     P_star[, 1L] <- 0  # intercept column has no noise
     if (M == 1L) {
-      P_star[, 2L] <- vapply(seq_len(K), function(j_idx) {
+      delta_p <- vapply(seq_len(K), function(j_idx) {
         idx <- which(z_num == judges[j_idx])
         sum(Wv[idx] * (d_num[idx] - p_j[j_idx])) / length(idx)
       }, numeric(1))
+      if (basis_order == 1L) {
+        P_star[, 2L] <- delta_p
+      } else {
+        # Delta-method for polynomial bases: d(p^k)/dp = k * p^{k-1}.
+        for (p_idx in seq_len(basis_order)) {
+          P_star[, p_idx + 1L] <- p_idx * p_j^(p_idx - 1L) * delta_p
+        }
+      }
     } else {
       for (m in seq_len(M)) {
         dv <- d_vals[m + 1L]
@@ -352,7 +416,7 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
   # each pair of judges identifies the common complier LATE via
   # (mu_j - mu_k) / (p_j - p_k). Not defined for multivalued D; NULL is
   # returned in that case.
-  if (M == 1L) {
+  if (M == 1L && basis_order == 1L) {
     pairwise_late <- matrix(NA_real_, nrow = K, ncol = K,
                             dimnames = list(judges, judges))
     for (i in seq_len(K)) {
@@ -399,11 +463,18 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
       binding = binding_j,
       pairwise_late = pairwise_late,
       worst_pair = worst_pair,
-      coef = if (M == 1L) c(intercept = alpha_hat, slope = beta_hat)
-             else c(intercept = alpha_hat, stats::setNames(beta_vec,
-                    paste0("beta_d", d_labels[-1L]))),
+      coef = if (M == 1L && basis_order == 1L) {
+               c(intercept = alpha_hat, slope = beta_hat)
+             } else if (M == 1L) {
+               c(intercept = alpha_hat,
+                 stats::setNames(beta_vec, paste0("delta_p", seq_len(basis_order))))
+             } else {
+               c(intercept = alpha_hat,
+                 stats::setNames(beta_vec, paste0("beta_d", d_labels[-1L])))
+             },
       n_judges = K,
       n_treatment_levels = M + 1L,
+      basis_order = basis_order,
       n = n,
       call = sys.call()
     ),
@@ -417,13 +488,15 @@ iv_testjfe.fixest <- function(object, x = NULL, n_boot = 1000,
                               alpha = 0.05,
                               method = c("asymptotic", "bootstrap"),
                               weights = NULL,
+                              basis_order = 1L,
                               parallel = TRUE, ...) {
   method <- match.arg(method)
   yz <- extract_iv_data(object)
   iv_testjfe.default(
     object = yz$y, d = yz$d, z = yz$z, x = x %||% yz$x,
     n_boot = n_boot, alpha = alpha, method = method,
-    weights = weights, parallel = parallel, ...
+    weights = weights, basis_order = basis_order,
+    parallel = parallel, ...
   )
 }
 
@@ -433,12 +506,14 @@ iv_testjfe.ivreg <- function(object, x = NULL, n_boot = 1000,
                              alpha = 0.05,
                              method = c("asymptotic", "bootstrap"),
                              weights = NULL,
+                             basis_order = 1L,
                              parallel = TRUE, ...) {
   method <- match.arg(method)
   yz <- extract_iv_data(object)
   iv_testjfe.default(
     object = yz$y, d = yz$d, z = yz$z, x = x %||% yz$x,
     n_boot = n_boot, alpha = alpha, method = method,
-    weights = weights, parallel = parallel, ...
+    weights = weights, basis_order = basis_order,
+    parallel = parallel, ...
   )
 }
