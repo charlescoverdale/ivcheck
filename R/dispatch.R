@@ -21,7 +21,16 @@ extract_iv_data.fixest <- function(object) {
   if (!requireNamespace("fixest", quietly = TRUE)) {
     cli::cli_abort("Package {.pkg fixest} is required for this method.")
   }
-  if (!isTRUE(object$iv)) {
+  # Detect IV models robustly across fixest versions. The `iv` flag has
+  # existed since fixest 0.10, but some versions leave it unset on the
+  # fitted object while still populating the first-stage list, the
+  # endogenous-names vector, or the IV slot of `fml_all`. Any of these
+  # being present is a reliable indicator that the user fit an IV model.
+  is_iv <- isTRUE(object$iv) ||
+    !is.null(object$iv_first_stage) ||
+    !is.null(object$iv_endo_names) ||
+    !is.null(object$fml_all$iv)
+  if (!is_iv) {
     cli::cli_abort(
       c(
         "Model is not an IV model.",
