@@ -18,7 +18,16 @@
 #'   of `x`. If `NULL`, the test reduces to the unconditional
 #'   Mourifie-Wan test.
 #' @param basis_order Polynomial order of the series-regression basis
-#'   used to estimate `F(y, d | X, Z)`. Default 3 (cubic).
+#'   used to estimate `F(y, d | X, Z)`. Default `3L` (cubic). Set to
+#'   `"auto"` to select the basis order by 5-fold cross-validation over
+#'   the candidates 2, 3, 4, 5 with squared-error loss on the indicator
+#'   regression. When `"auto"` is used, the bootstrap becomes
+#'   post-selection-valid: the test statistic is compared to the
+#'   maximum of the bootstrap statistics across the candidate orders,
+#'   which controls size at the nominal level against any selection
+#'   rule but is mildly conservative relative to a fixed-order test.
+#'   Runtime with `"auto"` is approximately four times the fixed-order
+#'   path.
 #' @param x_grid_size Number of quantile points of `x` at which to
 #'   evaluate the conditional CDFs. Default 20.
 #' @param y_grid_size Number of quantile points of `y` at which to
@@ -147,11 +156,26 @@ iv_mw.default <- function(object, d, z, x = NULL,
     ))
   }
 
-  core <- mw_clr_test(y, d_num, z_num, x_mat, n_boot, parallel,
-                      basis_order = basis_order,
-                      x_grid_size = x_grid_size,
-                      y_grid_size = y_grid_size,
-                      adaptive = adaptive)
+  use_auto <- identical(basis_order, "auto")
+  if (use_auto) {
+    core <- mw_clr_test_posi(y, d_num, z_num, x_mat, n_boot, parallel,
+                             candidates = 2:5,
+                             x_grid_size = x_grid_size,
+                             y_grid_size = y_grid_size,
+                             adaptive = adaptive)
+  } else {
+    if (!is.numeric(basis_order) || length(basis_order) != 1L ||
+        basis_order < 1L || basis_order != as.integer(basis_order)) {
+      cli::cli_abort(
+        "{.arg basis_order} must be a positive integer or the string {.val auto}."
+      )
+    }
+    core <- mw_clr_test(y, d_num, z_num, x_mat, n_boot, parallel,
+                        basis_order = as.integer(basis_order),
+                        x_grid_size = x_grid_size,
+                        y_grid_size = y_grid_size,
+                        adaptive = adaptive)
+  }
 
   structure(
     list(
@@ -164,7 +188,10 @@ iv_mw.default <- function(object, d, z, x = NULL,
       binding = core$binding,
       conditional = TRUE,
       kappa_n = core$kappa_n,
-      basis_order = core$basis_order,
+      basis_order = if (use_auto) core$basis_order else as.integer(basis_order),
+      basis_order_auto = use_auto,
+      basis_order_cv = if (use_auto) core$basis_order_cv else NULL,
+      post_selection_valid = use_auto,
       n = core$n,
       call = sys.call()
     ),

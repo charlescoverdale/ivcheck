@@ -6,6 +6,144 @@
 #
 # Not exported.
 
+# K-fold cross-validated selection of the polynomial basis order for
+# the series-regression conditional CDF estimator. Loss is squared
+# prediction error of the indicator 1{Y <= y, D = d} on the
+# polynomial(X) basis, averaged across a coarse y-grid, both d levels,
+# and every Z cell. Candidates default to 2:5 (quadratic to quintic).
+#
+# Runtime scales with n_folds x length(candidates); at n_folds = 5 and
+# four candidates this is 20 times a single-order fit. Fast for
+# typical (n < 10000) designs.
+#
+# Not exported.
+#' @noRd
+mw_select_basis_order <- function(y, d_num, z_num, x_mat,
+                                  candidates = 2:5,
+                                  n_folds = 5L,
+                                  y_grid_size = 10L) {
+  n <- length(y)
+  x_str <- x_mat[, 1]
+  d_vals <- sort(unique(d_num))
+  z_levels <- sort(unique(z_num))
+  K <- length(z_levels)
+
+  # Coarse y-grid for CV; the final test uses the finer y_grid_size.
+  y_probs <- seq(0.1, 0.9, length.out = y_grid_size)
+  y_grid <- sort(unique(stats::quantile(y, probs = y_probs, names = FALSE)))
+  G <- length(y_grid)
+  leY <- outer(y, y_grid, "<=")
+
+  make_basis <- function(v, order) {
+    out <- matrix(1, nrow = length(v), ncol = order + 1L)
+    for (p in seq_len(order)) out[, p + 1L] <- v^p
+    out
+  }
+
+  # CV fold assignment, stratified within each Z cell so every fold
+  # contains observations from every instrument level.
+  fold_id <- integer(n)
+  for (k in seq_len(K)) {
+    idx <- which(z_num == z_levels[k])
+    if (length(idx) == 0L) next
+    fold_id[idx] <- sample(rep_len(seq_len(n_folds), length(idx)))
+  }
+
+  mse_by_order <- numeric(length(candidates))
+  for (p_idx in seq_along(candidates)) {
+    p <- candidates[p_idx]
+    total_sq_err <- 0
+    n_terms <- 0L
+    for (fold in seq_len(n_folds)) {
+      train <- which(fold_id != fold)
+      test  <- which(fold_id == fold)
+      if (length(train) == 0L || length(test) == 0L) next
+      for (k in seq_len(K)) {
+        idx_tr <- train[z_num[train] == z_levels[k]]
+        idx_te <- test[z_num[test] == z_levels[k]]
+        if (length(idx_tr) <= p + 1L || length(idx_te) == 0L) next
+        B_tr <- make_basis(x_str[idx_tr], p)
+        B_te <- make_basis(x_str[idx_te], p)
+        BtB_inv <- tryCatch(
+          solve(crossprod(B_tr) + diag(1e-8, p + 1L)),
+          error = function(e) NULL
+        )
+        if (is.null(BtB_inv)) next
+        for (dv in d_vals) {
+          ind_mask_tr <- d_num[idx_tr] == dv
+          ind_mask_te <- d_num[idx_te] == dv
+          ind_tr <- leY[idx_tr, , drop = FALSE] * ind_mask_tr
+          ind_te <- leY[idx_te, , drop = FALSE] * ind_mask_te
+          beta <- BtB_inv %*% (t(B_tr) %*% ind_tr)
+          pred_te <- B_te %*% beta
+          total_sq_err <- total_sq_err + sum((ind_te - pred_te)^2)
+          n_terms <- n_terms + length(ind_te)
+        }
+      }
+    }
+    mse_by_order[p_idx] <- if (n_terms > 0L) total_sq_err / n_terms else Inf
+  }
+  list(
+    selected = candidates[which.min(mse_by_order)],
+    mse = stats::setNames(mse_by_order, candidates),
+    candidates = candidates
+  )
+}
+
+# Post-selection-valid iv_mw test with CV-selected basis order.
+# Runs the core test under each candidate basis order and reports a
+# p-value valid against any selection rule by taking the maximum of
+# the bootstrap statistics across candidates. Conservative relative
+# to a fixed-order test; guaranteed to control size at the nominal
+# level regardless of which candidate CV selects.
+#' @noRd
+mw_clr_test_posi <- function(y, d_num, z_num, x_mat, n_boot, parallel,
+                             candidates = 2:5,
+                             x_grid_size = 20L, y_grid_size = 50L,
+                             adaptive = TRUE) {
+  cv <- mw_select_basis_order(y, d_num, z_num, x_mat,
+                              candidates = candidates,
+                              y_grid_size = 10L)
+  p_hat <- cv$selected
+  nP <- length(candidates)
+
+  per_order <- vector("list", nP)
+  for (i in seq_len(nP)) {
+    per_order[[i]] <- mw_clr_test(y, d_num, z_num, x_mat,
+                                  n_boot = n_boot, parallel = parallel,
+                                  basis_order = candidates[i],
+                                  x_grid_size = x_grid_size,
+                                  y_grid_size = y_grid_size,
+                                  adaptive = adaptive)
+  }
+  # Pair bootstrap replications across candidates and take the
+  # maximum. Using independent Rademacher weights per candidate is
+  # (conservatively) slightly larger than a shared-weights joint
+  # bootstrap would give; tightening to the exact joint is a
+  # v0.2.0 item.
+  boot_min_len <- min(vapply(per_order, function(o) length(o$boot_stats),
+                             integer(1)))
+  boot_mat <- vapply(per_order, function(o) o$boot_stats[seq_len(boot_min_len)],
+                     numeric(boot_min_len))
+  boot_max <- apply(boot_mat, 1, max)
+
+  sel_idx <- match(p_hat, candidates)
+  observed <- per_order[[sel_idx]]$statistic
+  p_value <- mean(boot_max >= observed)
+
+  list(
+    statistic = observed,
+    p_value = p_value,
+    boot_stats = boot_max,
+    binding = per_order[[sel_idx]]$binding,
+    n = per_order[[sel_idx]]$n,
+    kappa_n = per_order[[sel_idx]]$kappa_n,
+    basis_order = p_hat,
+    basis_order_cv = cv,
+    post_selection_valid = TRUE
+  )
+}
+
 #' @noRd
 mw_clr_test <- function(y, d_num, z_num, x_mat, n_boot, parallel,
                         basis_order = 3L,

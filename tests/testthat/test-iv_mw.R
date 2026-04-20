@@ -46,6 +46,39 @@ test_that("iv_mw errors when x rows do not match y", {
                "same number of rows")
 })
 
+test_that("iv_mw with basis_order = auto does CV selection and PoSI inference", {
+  skip_on_cran()
+  set.seed(1)
+  n <- 500
+  x <- rnorm(n)
+  z <- sample(0:1, n, replace = TRUE)
+  d <- rbinom(n, 1, plogis(-0.5 + 0.8 * z + 0.3 * x))
+  y <- rnorm(n, mean = d + 0.4 * x)
+  out <- iv_mw(y, d, z, x = x, basis_order = "auto",
+               n_boot = 100, parallel = FALSE)
+  expect_s3_class(out, "iv_test")
+  expect_true(out$post_selection_valid)
+  expect_true(out$basis_order_auto)
+  expect_true(out$basis_order %in% 2:5)
+  expect_equal(names(out$basis_order_cv$mse), as.character(2:5))
+  expect_true(all(is.finite(out$basis_order_cv$mse)))
+})
+
+test_that("iv_mw rejects invalid basis_order", {
+  set.seed(1)
+  n <- 200
+  x <- rnorm(n)
+  z <- sample(0:1, n, replace = TRUE)
+  d <- rbinom(n, 1, 0.5)
+  y <- rnorm(n)
+  expect_error(iv_mw(y, d, z, x = x, basis_order = "banana",
+                     n_boot = 10, parallel = FALSE),
+               "positive integer|auto")
+  expect_error(iv_mw(y, d, z, x = x, basis_order = 1.5,
+                     n_boot = 10, parallel = FALSE),
+               "positive integer")
+})
+
 test_that("iv_mw statistic and p-value are in valid ranges", {
   set.seed(1)
   n <- 200

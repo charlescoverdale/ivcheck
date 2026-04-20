@@ -73,7 +73,16 @@ of \code{x}. If \code{NULL}, the test reduces to the unconditional
 Mourifie-Wan test.}
 
 \item{basis_order}{Polynomial order of the series-regression basis
-used to estimate \code{F(y, d | X, Z)}. Default 3 (cubic).}
+used to estimate \code{F(y, d | X, Z)}. Default \code{3L} (cubic). Set to
+\code{"auto"} to select the basis order by 5-fold cross-validation over
+the candidates 2, 3, 4, 5 with squared-error loss on the indicator
+regression. When \code{"auto"} is used, the bootstrap becomes
+post-selection-valid: the test statistic is compared to the
+maximum of the bootstrap statistics across the candidate orders,
+which controls size at the nominal level against any selection
+rule but is mildly conservative relative to a fixed-order test.
+Runtime with \code{"auto"} is approximately four times the fixed-order
+path.}
 
 \item{x_grid_size}{Number of quantile points of \code{x} at which to
 evaluate the conditional CDFs. Default 20.}
