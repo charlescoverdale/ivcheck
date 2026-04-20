@@ -116,6 +116,17 @@ degrees of freedom (the FLL asymptotic form). The multiplier
 bootstrap of the restricted residual process is available via
 \code{method = "bootstrap"} for small-K robustness.
 
+\strong{Note on finite-sample size.} Per-judge propensities \code{p_j} enter
+the test as estimated regressors. At modest per-judge sample sizes
+(\code{n_j} below a few hundred), finite-sample binomial noise in
+\verb{hat p_j} compresses the distribution of the test statistic below
+the asymptotic chi-squared reference, producing a test that is
+mildly conservative at nominal 5 percent. Empirical size at
+\code{K = 20}, \code{N = 3000} is 1.5 percent under the asymptotic method
+and 2.5 percent under the bootstrap. Both methods sharpen toward
+nominal as \code{n_j} grows. The bootstrap is recommended for
+publication-grade p-values at modest \code{n_j}.
+
 The returned object includes \code{pairwise_late}, the \verb{K x K} matrix of
 pairwise Wald LATE estimates, and \code{worst_pair}, the judge pair with
 the largest absolute deviation from the fitted slope. These are
