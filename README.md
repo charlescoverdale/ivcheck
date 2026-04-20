@@ -5,9 +5,34 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 <!-- badges: end -->
 
-Tests of the LATE identifying assumptions for instrumental variable (IV) models: three published falsification tests with S3 methods for fitted `fixest` and `ivreg` models, plus a one-shot wrapper. Pure computation, no network.
+## Introduction
 
-## What goes in your replication code
+`ivcheck` is an R package that tests the identifying assumptions behind instrumental variable (IV) estimation. It provides four published falsification tests as named R functions, with S3 methods for fitted `fixest` and `ivreg` models plus a one-shot wrapper that runs every applicable test in a single call.
+
+Every applied IV paper rests on two assumptions about the instrument `Z`: the exclusion restriction (`Z` affects the outcome `Y` only through the endogenous treatment `D`) and monotonicity (no defiers). Under these assumptions plus independence, the IV estimand identifies the local average treatment effect (LATE) for compliers (Imbens and Angrist 1994). Both assumptions are untestable-looking in principle, but the methodological literature has derived testable implications on the joint distribution of `(Y, D, Z)`: Kitagawa (2015), Mourifie-Wan (2017), Frandsen-Lefgren-Leslie (2023), Huber-Mellace (2015). Rejection of these tests is evidence that at least one of exclusion or monotonicity has failed. Non-rejection is evidence of no detectable violation at the chosen level.
+
+Applied IV research has not adopted these tests widely. Most empirical IV papers still argue identification by narrative ("my instrument is random-looking because X"), and referees are increasingly frustrated with this. The limiting factor has been tooling rather than conviction: Kitagawa's test ships as supplementary Matlab code, Mourifie-Wan relies on the Stata `clrtest` module, Frandsen-Lefgren-Leslie ships a Stata SSC module called `testjfe`, and Huber-Mellace has no maintained reference implementation at all. `ivcheck` closes that gap: two added lines to a `fixest::feols` call and you have a published falsification test ready for your paper's appendix.
+
+## The current landscape
+
+The R ecosystem for IV estimation is mature. [`fixest`](https://cran.r-project.org/package=fixest) is the dominant package for fast fixed-effects IV estimation via `feols(y ~ x | d ~ z)`. [`ivreg`](https://cran.r-project.org/package=ivreg) provides classical 2SLS with Wu-Hausman, Sargan, and weak-IV F tests. [`ivmodel`](https://cran.r-project.org/package=ivmodel) covers k-class estimators and weak-IV-robust confidence intervals. [`ivDiag`](https://cran.r-project.org/package=ivDiag) (Lal, Lockhart, Xu, and Zu 2024, *Political Analysis*) implements effective-F and Anderson-Rubin diagnostics, valid-t and local-to-zero tests, plus sensitivity analysis.
+
+None of these packages implements the LATE-validity family of falsification tests. Applied researchers who want their IV design formally tested have had to choose between writing a one-off replication script from the original paper's methodology section, switching to Stata for the test and back to R for the rest of the analysis, or not running the test at all. The third option has dominated.
+
+`ivcheck` is the first R-native implementation of the LATE-validity family. The implementations are faithful to the published statistics: Kitagawa's variance-weighted interval-sup Kolmogorov-Smirnov form (equation 2.1 of the paper), the full Chernozhukov-Lee-Rosen intersection-bounds inference with Andrews-Soares adaptive moment selection for Mourifie-Wan with covariates, the asymptotic chi-squared form of Frandsen-Lefgren-Leslie with multivalued-treatment support via section 4 of the paper, and the mean-based moment-inequality form of Huber-Mellace. All designed to slot into existing `fixest` and `ivreg` workflows without friction.
+
+## Installation
+
+```r
+# Once accepted by CRAN
+install.packages("ivcheck")
+
+# Development version from GitHub
+# install.packages("devtools")
+devtools::install_github("charlescoverdale/ivcheck")
+```
+
+## Quick start
 
 ```r
 library(fixest)
@@ -23,52 +48,9 @@ iv_check(m)
 
 Two added lines, a falsification test the referee is almost guaranteed to ask about, citation-ready output.
 
-## What's in the box
-
-| Function | Paper | Case |
-|---|---|---|
-| `iv_kitagawa()` | Kitagawa (2015) *Econometrica* / Sun (2023) *JoE* | Binary or multivalued ordered D, discrete Z |
-| `iv_mw()` | Mourifie-Wan (2017) *ReStat* | Binary D, discrete Z, with covariates |
-| `iv_testjfe()` | Frandsen-Lefgren-Leslie (2023) *AER* | Judge / group IV design |
-| `iv_check()` | (this package) | Runs all applicable tests on a fitted IV model |
-| `iv_power()` | (this package) | Monte Carlo power curve under a specified violation |
-
-None of these tests had a maintained R package before `ivcheck`. Replication scripts live as Stata modules or bespoke Matlab code on author websites. Most applied IV papers do not run any of them, for reasons of tooling rather than conviction.
-
-## 101: what these tests check
-
-Every IV estimate rests on two assumptions: the **exclusion restriction** (`Z` affects `Y` only through its effect on `D`) and **monotonicity** (no defiers). Together with independence, these are the Imbens-Angrist (1994) conditions that identify the LATE for compliers.
-
-The tests here check necessary *implications* of those assumptions. If the null is true, the joint distribution of `(Y, D, Z)` must satisfy certain inequalities on the conditional CDFs (Kitagawa 2015, Mourifie-Wan 2017) or linearity conditions on per-group means (Frandsen-Lefgren-Leslie 2023). Empirical failure of any of these is evidence that exclusion or monotonicity (or both) has failed.
-
-## What rejection and non-rejection actually mean
-
-**Rejection**: the data show a detectable violation of the testable implication. That rules out at least some forms of exclusion or monotonicity failure. It does not, by itself, localise which assumption failed or in which direction.
-
-**Non-rejection**: there is no detectable violation at the chosen level. It is not proof of validity. The tests have power against violations that show up in the observable distributions but are silent on violations that cancel out across subgroups. Report as "no detectable violation at level 0.05", not "my IV is clean."
-
-## Why trust this implementation
-
-- **Kitagawa statistic matches equation 2.1** of the paper. The sup is taken over the full class of intervals `[y, y']` with `y <= y'`, not just over single lower tails; normalised by the binomial-mixture plug-in standard error of Kitagawa's equation 2.1. Variance-weighted form is the default (`weighting = "variance"`); the unweighted form of equation 2.2 is available via `weighting = "unweighted"`.
-- **iv_mw with covariates implements the full Chernozhukov-Lee-Rosen (2013) intersection-bounds framework**: series-regression conditional CDF estimation, heteroscedasticity-robust plug-in standard errors, multiplier bootstrap with adaptive moment selection (Andrews-Soares 2010, `kappa_n = sqrt(log(log(n)))`). Without covariates, `iv_mw` reduces exactly to the variance-weighted Kitagawa test (unit-tested).
-- **iv_testjfe null distribution matches `chi^2_{K-2}` to Monte Carlo precision.** At `K=20`, `N=3000` (200 replications): empirical mean 18.01 vs target 18.0, variance 35.1 vs target 36.0, 95th percentile 29.4 vs target 28.9, empirical size 6.5% vs nominal 5%. A `method = "bootstrap"` option is available for small-K robustness.
-- **All DOIs crossref-verified.** The audit caught a silent bug: Mourifie-Wan's DOI had been cited as `10.1162/REST_a_00628` (which resolves to a different paper entirely). The correct DOI is `00622`. Fixed before first submission.
-- **R CMD check --as-cran**: 0 errors, 0 warnings, 0 notes. 87 unit tests covering structure, invariants, known-value cases, edge cases, and end-to-end S3 dispatch against `fixest` and `ivreg`.
-
-## Installation
-
-```r
-# Once accepted by CRAN
-install.packages("ivcheck")
-
-# Development version from GitHub
-# install.packages("devtools")
-devtools::install_github("charlescoverdale/ivcheck")
-```
-
 ## Walkthrough
 
-Output lines prefixed with `#>` are what the console shows.
+Output lines prefixed with `#>` show what the console prints.
 
 ### A single test on raw vectors
 
@@ -90,7 +72,7 @@ print(k)
 #> Verdict: cannot reject IV validity at 0.05
 ```
 
-The bootstrap p-value comes from the multiplier resampling of Kitagawa (2015) section 3.2. With `parallel = TRUE` (default) replications run across cores on POSIX.
+The bootstrap p-value comes from the multiplier resampling procedure of Kitagawa (2015) section 3.2. With `parallel = TRUE` (the default) replications run across cores on POSIX systems.
 
 ### With covariates (Mourifie-Wan)
 
@@ -100,7 +82,16 @@ mw <- iv_mw(y, d, z, x = x, n_boot = 500)
 print(mw)
 ```
 
-`iv_mw()` with covariates estimates `F(y, d | X = x, Z = z)` by cubic-polynomial series regression, computes heteroscedasticity-robust standard errors, and takes the sup of the studentised positive-part over a grid of `(y, x)` points. Critical values use adaptive moment selection. Without covariates it reduces to Kitagawa.
+`iv_mw()` with covariates estimates `F(y, d | X = x, Z = z)` by cubic-polynomial series regression, computes heteroscedasticity-robust standard errors, and takes the sup of the studentised positive-part violation over a grid of `(y, x)` points. Critical values use adaptive moment selection with Andrews-Soares `kappa_n = sqrt(log(log(n)))`. Without covariates it reduces exactly to the variance-weighted Kitagawa test.
+
+### Mean-based Huber-Mellace test
+
+```r
+hm <- iv_hm(y, d, z, n_boot = 500)
+print(hm)
+```
+
+`iv_hm()` tests mean-based moment inequalities on the implied complier outcome distribution. Under the joint null, the principal-strata decomposition yields implied bounds on `E[Y(d) | complier]` that must lie inside the observed outcome support. Complementary to Kitagawa: more power against location-level violations; less power against shape-level violations.
 
 ### Judge designs (Frandsen-Lefgren-Leslie)
 
@@ -114,7 +105,7 @@ y <- rnorm(n, mean = d)
 jfe <- iv_testjfe(y, d, judge, n_boot = 500)
 ```
 
-Designs where the instrument is a set of mutually exclusive dummies (judge, caseworker, examiner) need a purpose-built test. `iv_testjfe()` fits a weighted-LS regression of per-judge `mu_j` on per-judge `p_j` and tests the implied linearity via chi-squared with `K - 2` degrees of freedom (default) or multiplier bootstrap (`method = "bootstrap"`).
+Designs where the instrument is a set of mutually exclusive dummies (judge, caseworker, examiner) need a purpose-built test. `iv_testjfe()` fits a weighted-LS regression of per-judge `mu_j` on per-judge `p_j` and tests the implied linearity via chi-squared with `K - 2` degrees of freedom (default) or multiplier bootstrap (`method = "bootstrap"`). Multivalued treatment is supported via Frandsen-Lefgren-Leslie (2023) section 4.
 
 ### One-shot diagnostic on a fitted model
 
@@ -127,7 +118,7 @@ m  <- feols(y ~ x | d ~ z, data = df)
 iv_check(m, n_boot = 500)
 ```
 
-`iv_check()` detects applicable tests from the model structure (binary D, discrete Z, judge dummies) and runs all of them. Works identically on `ivreg::ivreg()` objects.
+`iv_check()` detects which tests are applicable from the model structure (binary versus multivalued D, discrete versus judge-style Z, presence of covariates) and runs all of them. Works identically on `ivreg::ivreg()` objects.
 
 ### Power planning
 
@@ -135,7 +126,7 @@ iv_check(m, n_boot = 500)
 pw <- iv_power(y, d, z, method = "kitagawa", n_sims = 200)
 ```
 
-Simulates data under a parametric exclusion violation and reports rejection probability at a grid of deviation sizes. Useful when choosing between candidate tests on the same design.
+Simulates data under a parametric exclusion violation and reports rejection probability at a grid of deviation sizes. Useful when choosing between candidate tests on the same design, or planning a minimum sample size for a study.
 
 ## Example: end-to-end with Card (1995)
 
@@ -151,12 +142,23 @@ m <- feols(
 
 iv_check(m, n_boot = 1000)
 #> IV validity diagnostic
-#>   Kitagawa (2015):     stat = 0.01, p = 1.00, pass
+#>   Kitagawa (2015):     stat = 0.10, p = 0.82, pass
 #>   Mourifie-Wan (2017): stat = 32.4, p = 0.67, pass
 #> Overall: cannot reject IV validity at 0.05.
 ```
 
-Card's proximity-to-college instrument passes both tests. This does not prove validity (no test can) but it rules out detectable violations at the 5% level. Report the test statistic alongside the IV estimate, cite Kitagawa (2015) or Mourifie-Wan (2017), move on.
+Card's proximity-to-college instrument passes both tests on the binary-discretised `college` treatment. This does not prove validity (no test can) but rules out detectable violations at the 5% level. Report the test statistic alongside the IV estimate, cite Kitagawa (2015) or Mourifie-Wan (2017), move on.
+
+## Functions
+
+| Function | Purpose |
+|---|---|
+| `iv_kitagawa()` | Kitagawa (2015) variance-weighted KS test. Extends to multivalued D via Sun (2023). |
+| `iv_mw()` | Mourifie-Wan (2017) conditional-inequality test. Full CLR intersection-bounds with adaptive moment selection under covariates. |
+| `iv_hm()` | Huber-Mellace (2015) mean-based moment-inequality test on implied complier outcomes. |
+| `iv_testjfe()` | Frandsen-Lefgren-Leslie (2023) test for judge / group IV designs. Supports multivalued treatment. |
+| `iv_check()` | Wrapper that auto-detects applicable tests and runs them on a fitted IV model. |
+| `iv_power()` | Monte Carlo power curve for sample-size planning. |
 
 ## Limitations
 
@@ -164,66 +166,34 @@ Read before using in published work.
 
 ### Scope (v0.1.0 does not cover)
 
-- **Continuous instruments.** All three tests require a discrete `Z`. For continuous instruments, discretise into quantile bins (quartiles or quintiles) before passing to `iv_kitagawa` or `iv_mw`. This is standard practice in the applied literature and costs a modest amount of power. A formal nonparametric continuous-`Z` extension (e.g. the local-moment-inequality framework of Andrews and Shi 2013) is on the v0.2.0 roadmap.
-- **Fuzzy regression discontinuity.** FRD has its own testable implications at the cutoff [@arai2022]. Handling them requires different infrastructure (running variable, bandwidth selection, bias correction) that does not fit the current `iv_test`-on-fitted-IV-model spine; a dedicated `iv_frd()` function is planned for v0.2.0.
-- **`iv_mw` with covariates under weights.** The `weights` argument is fully implemented for the unconditional path and for the FLL judge test, but the CLR series-regression path for `iv_mw` with covariates does not yet propagate weights. Use `iv_kitagawa` directly with weights if you need weighted inference without covariates, or wait for v0.1.1.
-
-### Faithfulness to the published tests
-
-All three test functions implement the asymptotic form their authors publish. Under binary treatment with moderate `K`, `iv_testjfe()` is algebraically the FLL (2023) overidentification test: the weighted sum of squared residuals from the linear fit `mu_j = alpha + beta * p_j` is, via WLS, the quadratic form implied by pairwise Wald LATE equality. `iv_testjfe()` also returns the `pairwise_late` matrix and `worst_pair` as diagnostic output.
-
-The v0.1.0 scope limitation for `iv_testjfe()` is **multivalued treatment** only: Frandsen, Lefgren, and Leslie (2023) Section 4 extends to multi-valued `D`, and this package does not yet support it. `iv_testjfe()` errors on non-binary `D`. Use the Stata `testjfe` module until the v0.2.0 port lands.
-
-`iv_kitagawa()` and `iv_mw()` are faithful implementations of their published forms (variance-weighted KS per Kitagawa 2015 §4 and full CLR intersection-bounds inference with adaptive moment selection per Mourifie-Wan 2017 and Andrews-Soares 2010 respectively).
+- **Continuous instruments.** All four tests require a discrete `Z`. For continuous instruments, discretise into quantile bins (quartiles or quintiles) before passing to `iv_kitagawa`, `iv_mw`, or `iv_hm`. A formal nonparametric continuous-`Z` extension is on the v0.2.0 roadmap.
+- **Fuzzy regression discontinuity.** FRD has its own testable implications at the cutoff (Arai, Hsu, Kitagawa, Mourifie, and Wan 2022). Handling them requires different infrastructure (running variable, bandwidth selection, bias correction) that does not fit the current fitted-IV-model spine; a dedicated `iv_frd()` function is planned for v0.2.0.
+- **`iv_mw` with covariates under weights.** The `weights` argument is fully implemented for `iv_kitagawa`, `iv_hm`, `iv_testjfe`, and the no-covariate path of `iv_mw`. The CLR series-regression path for `iv_mw` with covariates does not yet propagate weights; planned for v0.1.1.
 
 ### Interpretation
 
-- **Non-rejection is not proof of validity.** The tests have power against violations in the observable conditional distributions but are silent on violations that cancel out.
+- **Non-rejection is not proof of validity.** The tests have power against violations in the observable conditional distributions but are silent on violations that cancel out across subgroups.
 - **Kitagawa vs Mourifie-Wan with covariates.** If the exclusion restriction is only plausible conditional on `X`, run `iv_mw` with `x`. Running `iv_kitagawa` unconditionally on an X-dependent design can give spurious non-rejection.
 - **Many-instrument / judge regimes.** For 20+ judge levels, prefer `iv_testjfe` over `iv_kitagawa`; the KS test loses power rapidly as `|Z|` grows.
 - **Bootstrap size.** `n_boot = 1000` (default) is fine for publication-grade p-values. Cut to 200 for exploration; raise to 5000 if reporting p-values to three decimal places.
-- **The `se_floor` trimming constant (Kitagawa 2015 `\xi`) has a material impact on finite-sample size.** The default is 0.15, raised from the paper's informally-recommended 0.05-0.1 range after Monte Carlo evaluation revealed that the smaller floor produces anti-conservative size under skewed Z-cell distributions with weak first stages. At 0.15 empirical size is at or below nominal 5% in all 24 Monte Carlo configurations we tested. Users matching published Kitagawa (2015) results can set `se_floor = 0.1`. A sensitivity report across two or three `se_floor` values is a reasonable robustness check.
+- **The `se_floor` trimming constant (Kitagawa's `\xi`) has a material impact on finite-sample size.** The default is 0.15, raised from the paper's informally-recommended 0.05-0.1 range after Monte Carlo showed that smaller floors produce anti-conservative size under skewed Z-cell distributions with weak first stages. At 0.15 empirical size is at or below nominal 5% in all 24 Monte Carlo configurations tested. Users reproducing Kitagawa's published examples can set `se_floor = 0.1`.
 
-### Language implementations
+## Why trust this implementation
 
-As of 2026-04-19 there is no equivalent package on PyPI. Kitagawa (2015) has Matlab supplementary code; Mourifie-Wan (2017) has a Stata `clrtest` implementation; Frandsen-Lefgren-Leslie (2023) has the Stata `testjfe` SSC module. `ivcheck` is the first R-native implementation of this family.
+- **Kitagawa statistic matches equation 2.1** of the paper. The sup is taken over the full class of intervals `[y, y']` with `y <= y'`, normalised by the binomial-mixture plug-in standard error. The variance-weighted form is the default; the unweighted form of equation 2.2 is available via `weighting = "unweighted"`.
+- **`iv_mw` with covariates implements the full Chernozhukov-Lee-Rosen (2013) intersection-bounds framework**: series-regression conditional CDF estimation, heteroscedasticity-robust plug-in standard errors, multiplier bootstrap with adaptive moment selection. Without covariates, `iv_mw` reduces exactly to the variance-weighted Kitagawa test (unit-tested).
+- **`iv_testjfe` null distribution matches `chi^2_{K-2}` to Monte Carlo precision.** At `K=20`, `N=3000` over 200 replications: empirical mean 18.01 vs target 18.0, variance 35.1 vs target 36.0, 95th percentile 29.4 vs target 28.9, empirical size 6.5% vs nominal 5%. A `method = "bootstrap"` option is available for small-`K` robustness.
+- **All DOIs CrossRef-verified.** The pre-release audit caught a silent bug: Mourifie-Wan's DOI had been cited as `10.1162/REST_a_00628` (which resolves to a different paper entirely). The correct DOI is `_00622`. Fixed before first submission.
+- **`R CMD check --as-cran`**: 0 errors, 0 warnings, 0 notes. 97 unit tests covering structure, invariants, known-value cases, edge cases, and end-to-end S3 dispatch against `fixest` and `ivreg` fitted models.
 
 ## Planned for future versions
 
-- `iv_frd()`: Arai, Hsu, Kitagawa, Mourifie, Wan (2022, *QE*) fuzzy regression discontinuity
+- `iv_frd()`: Arai, Hsu, Kitagawa, Mourifie, and Wan (2022) fuzzy regression discontinuity test
 - Continuous-instrument extension via Andrews and Shi (2013) conditional-moment-inequality inference
 - Weighted inference in the `iv_mw` conditional (x) series-regression path
 - Rcpp fast path for the interval-sup multiplier bootstrap
 - Full flexible-basis FLL restricted-LS test with Andrews-Soares bounded-slope moment selection
 - **Stata cross-validation.** Numeric-agreement tests against the Stata `testjfe` module (Frandsen, BYU, 2020) and the `clrtest` Stata package of Chernozhukov, Lee, and Rosen (2015) on shared simulated and replication data. Required to close the last academic-defensibility item. Needs Stata access, so deferred to the next release.
-
-## Functions
-
-| Function | Purpose |
-|---|---|
-| `iv_kitagawa()` | Kitagawa (2015) variance-weighted KS test |
-| `iv_mw()` | Mourifie-Wan (2017) conditional-inequality test with adaptive GMS |
-| `iv_testjfe()` | Frandsen-Lefgren-Leslie (2023) judge / group IV test |
-| `iv_check()` | Wrapper: runs all applicable tests on a fitted IV model |
-| `iv_power()` | Monte Carlo power curve under a specified violation |
-
-## Citation
-
-Cite both the package and the underlying paper(s) for the test you use. Package citation:
-
-```r
-citation("ivcheck")
-```
-
-Underlying paper citations (DOIs verified via crossref.org):
-
-| Function | Reference | DOI |
-|---|---|---|
-| `iv_kitagawa()` | Kitagawa, T. (2015). A Test for Instrument Validity. *Econometrica* 83(5): 2043-2063. | [10.3982/ECTA11974](https://doi.org/10.3982/ECTA11974) |
-| `iv_mw()` | Mourifie, I. and Wan, Y. (2017). Testing Local Average Treatment Effect Assumptions. *Review of Economics and Statistics* 99(2): 305-313. | [10.1162/REST_a_00622](https://doi.org/10.1162/REST_a_00622) |
-| `iv_testjfe()` | Frandsen, B. R., Lefgren, L. J., Leslie, E. C. (2023). Judging Judge Fixed Effects. *American Economic Review* 113(1): 253-277. | [10.1257/aer.20201860](https://doi.org/10.1257/aer.20201860) |
-
-Foundational LATE framework: Imbens and Angrist (1994), *Econometrica* 62(2): 467-475. Intersection-bounds inference inside `iv_mw`: Chernozhukov, Lee, and Rosen (2013), *Econometrica* 81(2): 667-737. Adaptive moment selection: Andrews and Soares (2010), *Econometrica* 78(1): 119-157.
 
 ## Related packages
 
@@ -234,12 +204,44 @@ Foundational LATE framework: Imbens and Angrist (1994), *Econometrica* 62(2): 46
 | [`ivmodel`](https://cran.r-project.org/package=ivmodel) | k-class estimators, weak-IV robust CIs, sensitivity analysis |
 | [`ivDiag`](https://cran.r-project.org/package=ivDiag) | Effective F, Anderson-Rubin, valid-t, local-to-zero tests |
 
-`ivcheck` complements rather than competes: `fixest` or `ivreg` does the estimation, `ivDiag` does post-estimation diagnostics, and `ivcheck` does LATE-assumption falsification.
+`ivcheck` complements rather than competes with these. `fixest` or `ivreg` does the estimation, `ivDiag` does weak-IV post-estimation diagnostics, and `ivcheck` does LATE-assumption falsification.
 
 ## Issues and requests
 
 Report bugs or request additional tests at [GitHub Issues](https://github.com/charlescoverdale/ivcheck/issues). Pull requests implementing additional IV-validity tests from the literature are welcome; please include a reference to the original paper and a reproduction test against its empirical example.
 
+## References
+
+Cite both the package and the underlying paper(s) for the test you use. Package citation:
+
+```r
+citation("ivcheck")
+```
+
+### Test-specific references (DOIs verified via crossref.org)
+
+| Function | Reference | DOI |
+|---|---|---|
+| `iv_kitagawa()` | Kitagawa, T. (2015). A Test for Instrument Validity. *Econometrica* 83(5): 2043-2063. | [10.3982/ECTA11974](https://doi.org/10.3982/ECTA11974) |
+| `iv_kitagawa()` (multivalued D) | Sun, Z. (2023). Instrument Validity for Heterogeneous Causal Effects. *Journal of Econometrics*. | [10.1016/j.jeconom.2023.105628](https://doi.org/10.1016/j.jeconom.2023.105628) |
+| `iv_mw()` | Mourifie, I. and Wan, Y. (2017). Testing Local Average Treatment Effect Assumptions. *Review of Economics and Statistics* 99(2): 305-313. | [10.1162/REST_a_00622](https://doi.org/10.1162/REST_a_00622) |
+| `iv_hm()` | Huber, M. and Mellace, G. (2015). Testing Instrument Validity for LATE Identification Based on Inequality Moment Constraints. *Review of Economics and Statistics* 97(2): 398-411. | [10.1162/REST_a_00450](https://doi.org/10.1162/REST_a_00450) |
+| `iv_testjfe()` | Frandsen, B. R., Lefgren, L. J., Leslie, E. C. (2023). Judging Judge Fixed Effects. *American Economic Review* 113(1): 253-277. | [10.1257/aer.20201860](https://doi.org/10.1257/aer.20201860) |
+
+### Foundational and methodological references
+
+- Imbens, G. W. and Angrist, J. D. (1994). Identification and Estimation of Local Average Treatment Effects. *Econometrica* 62(2): 467-475. [10.2307/2951620](https://doi.org/10.2307/2951620)
+- Chernozhukov, V., Lee, S., and Rosen, A. M. (2013). Intersection Bounds: Estimation and Inference. *Econometrica* 81(2): 667-737. [10.3982/ECTA8718](https://doi.org/10.3982/ECTA8718). Used inside `iv_mw` conditional path.
+- Andrews, D. W. K. and Soares, G. (2010). Inference for Parameters Defined by Moment Inequalities Using Generalized Moment Selection. *Econometrica* 78(1): 119-157. [10.3982/ECTA7502](https://doi.org/10.3982/ECTA7502). Adaptive moment selection in `iv_mw`.
+
+### Related tests planned for v0.2.0
+
+- Arai, Y., Hsu, Y.-C., Kitagawa, T., Mourifie, I., and Wan, Y. (2022). Testing Identifying Assumptions in Fuzzy Regression Discontinuity Designs. *Quantitative Economics* 13(1): 1-28. [10.3982/QE1367](https://doi.org/10.3982/QE1367). Planned as `iv_frd()`.
+
+### Package comparison
+
+- Lal, A., Lockhart, M., Xu, Y., and Zu, Z. (2024). How Much Should We Trust Instrumental Variable Estimates in Political Science? Practical Advice Based on 67 Replicated Studies. *Political Analysis*. [10.1017/pan.2024.2](https://doi.org/10.1017/pan.2024.2). Companion paper to the `ivDiag` R package.
+
 ## Keywords
 
-instrumental variables, LATE, causal inference, exclusion restriction, monotonicity, specification testing, falsification, judge IV, Kitagawa test, Mourifie-Wan test, FLL test, econometrics.
+instrumental variables, LATE, causal inference, exclusion restriction, monotonicity, specification testing, falsification, judge IV, Kitagawa test, Mourifie-Wan test, Huber-Mellace test, FLL test, econometrics.
