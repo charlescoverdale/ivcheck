@@ -2,10 +2,12 @@
 #'
 #' Tests the joint implication of the local exclusion restriction and the
 #' local monotonicity condition in a discrete-instrument setting.
-#' Supports binary treatment (Kitagawa 2015) and ordered multivalued
-#' treatment (Sun 2023). The null is that the instrument is valid. Under
-#' the null, the conditional joint distribution of `(Y, D | Z)` must
-#' satisfy stochastic dominance inequalities on cumulative-tail events.
+#' Supports binary treatment (Kitagawa 2015), ordered multivalued
+#' treatment (Sun 2023 section 3), and unordered multivalued treatment
+#' (Sun 2023 section 3.3) under a user-supplied monotonicity set.
+#' The null is that the instrument is valid. Under the null, the
+#' conditional joint distribution of `(Y, D | Z)` must satisfy
+#' stochastic dominance inequalities on cumulative-tail events.
 #' Rejection is evidence that at least one of exclusion or monotonicity
 #' fails.
 #'
@@ -38,6 +40,23 @@
 #'   and the variance-weighted standard errors.
 #' @param parallel Logical. Run bootstrap replications in parallel on
 #'   POSIX systems via [parallel::mclapply]. Default `TRUE`.
+#' @param treatment_order Either `"ordered"` (default) or `"unordered"`.
+#'   Binary `D` is handled identically under both. For multivalued `D`,
+#'   `"ordered"` uses cumulative-tail inequalities
+#'   `P(Y <= y, D <= ell | Z)` and `P(Y <= y, D >= ell | Z)` across all
+#'   pairs of instrument values, a stronger family of implications than
+#'   Sun (2023) equation 10's `d_min`-and-`d_max` subset (but still
+#'   valid under Sun's Assumption 2.2). `"unordered"` requires a
+#'   user-specified `monotonicity_set` naming the (level, z_from, z_to)
+#'   triples for which `1{D_{z_to} = d} <= 1{D_{z_from} = d}` is
+#'   assumed almost surely (Sun 2023 Assumption 2.4(iii)).
+#' @param monotonicity_set A `data.frame` with columns `d`, `z_from`,
+#'   `z_to` listing the triples that pin down the direction of the
+#'   monotonicity restriction for `treatment_order = "unordered"`.
+#'   Ignored when `treatment_order = "ordered"`.
+#' @param multiplier Choice of bootstrap multiplier: `"rademacher"`
+#'   (default; +/-1 two-point), `"gaussian"` (standard normal), or
+#'   `"mammen"` (Mammen 1993 asymmetric two-point).
 #' @param ... Further arguments passed to methods.
 #'
 #' @return An object of class `iv_test` with elements:
@@ -109,21 +128,49 @@ iv_kitagawa <- function(object, ...) {
 iv_kitagawa.default <- function(object, d, z, n_boot = 1000, alpha = 0.05,
                                 weighting = c("variance", "unweighted"),
                                 weights = NULL, parallel = TRUE,
-                                se_floor = 0.15, ...) {
+                                se_floor = 0.15,
+                                treatment_order = c("ordered", "unordered"),
+                                monotonicity_set = NULL,
+                                multiplier = c("rademacher", "gaussian",
+                                               "mammen"),
+                                ...) {
   weighting <- match.arg(weighting)
+  treatment_order <- match.arg(treatment_order)
+  multiplier <- match.arg(multiplier)
   y <- object
   validate_numeric(y, "y")
-  # Accept binary or multivalued ordered D. Binary is Kitagawa (2015);
-  # multivalued uses the cumulative-tail extension of Sun (2023).
   d_info <- validate_treatment_discrete(d, "d", max_levels = 20L)
   d_num <- d_info$d_num
   z_num <- validate_discrete(z, "z")
   check_lengths(y, d_num, z_num)
 
+  # Re-map user-supplied monotonicity_set d values to the internal 0..k-1
+  # coding used by kitagawa_core_test. Validate structure here so the
+  # error arrives before the internal remap runs.
+  ms_internal <- monotonicity_set
+  if (!is.null(ms_internal)) {
+    required <- c("d", "z_from", "z_to")
+    if (!all(required %in% names(ms_internal))) {
+      cli::cli_abort(
+        "{.arg monotonicity_set} must have columns {.val {required}}."
+      )
+    }
+    if (!is.null(d_info$original_levels)) {
+      original_to_internal <- stats::setNames(
+        seq_along(d_info$original_levels) - 1L,
+        d_info$original_levels
+      )
+      ms_internal$d <- original_to_internal[as.character(ms_internal$d)]
+    }
+  }
+
   core <- kitagawa_core_test(y, d_num, z_num, n_boot, parallel,
                              weighting = weighting, weights = weights,
                              se_floor = se_floor,
-                             d_labels = d_info$original_levels)
+                             d_labels = d_info$original_levels,
+                             treatment_order = treatment_order,
+                             monotonicity_set = ms_internal,
+                             multiplier = multiplier)
 
   test_name <- if (core$multivalued) "Sun (2023)" else "Kitagawa (2015)"
   structure(
@@ -136,6 +183,8 @@ iv_kitagawa.default <- function(object, d, z, n_boot = 1000, alpha = 0.05,
       boot_stats = core$boot_stats,
       binding = core$binding,
       weighting = weighting,
+      multiplier = multiplier,
+      treatment_order = treatment_order,
       n_treatment_levels = core$n_treatment_levels,
       multivalued = core$multivalued,
       n = core$n,
@@ -149,13 +198,23 @@ iv_kitagawa.default <- function(object, d, z, n_boot = 1000, alpha = 0.05,
 #' @export
 iv_kitagawa.fixest <- function(object, n_boot = 1000, alpha = 0.05,
                                weighting = c("variance", "unweighted"),
-                               weights = NULL, parallel = TRUE, ...) {
+                               weights = NULL, parallel = TRUE,
+                               treatment_order = c("ordered", "unordered"),
+                               monotonicity_set = NULL,
+                               multiplier = c("rademacher", "gaussian",
+                                              "mammen"),
+                               ...) {
   weighting <- match.arg(weighting)
+  treatment_order <- match.arg(treatment_order)
+  multiplier <- match.arg(multiplier)
   yz <- extract_iv_data(object)
   iv_kitagawa.default(
     object = yz$y, d = yz$d, z = yz$z,
     n_boot = n_boot, alpha = alpha, weighting = weighting,
-    weights = weights, parallel = parallel, ...
+    weights = weights, parallel = parallel,
+    treatment_order = treatment_order,
+    monotonicity_set = monotonicity_set,
+    multiplier = multiplier, ...
   )
 }
 
@@ -163,12 +222,22 @@ iv_kitagawa.fixest <- function(object, n_boot = 1000, alpha = 0.05,
 #' @export
 iv_kitagawa.ivreg <- function(object, n_boot = 1000, alpha = 0.05,
                               weighting = c("variance", "unweighted"),
-                              weights = NULL, parallel = TRUE, ...) {
+                              weights = NULL, parallel = TRUE,
+                              treatment_order = c("ordered", "unordered"),
+                              monotonicity_set = NULL,
+                              multiplier = c("rademacher", "gaussian",
+                                             "mammen"),
+                              ...) {
   weighting <- match.arg(weighting)
+  treatment_order <- match.arg(treatment_order)
+  multiplier <- match.arg(multiplier)
   yz <- extract_iv_data(object)
   iv_kitagawa.default(
     object = yz$y, d = yz$d, z = yz$z,
     n_boot = n_boot, alpha = alpha, weighting = weighting,
-    weights = weights, parallel = parallel, ...
+    weights = weights, parallel = parallel,
+    treatment_order = treatment_order,
+    monotonicity_set = monotonicity_set,
+    multiplier = multiplier, ...
   )
 }

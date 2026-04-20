@@ -19,8 +19,14 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
                                weights = NULL,
                                se_floor = 0.15,
                                y_grid_size = 50L,
-                               d_labels = NULL) {
+                               d_labels = NULL,
+                               treatment_order = c("ordered", "unordered"),
+                               monotonicity_set = NULL,
+                               multiplier = c("rademacher", "gaussian",
+                                              "mammen")) {
   weighting <- match.arg(weighting)
+  treatment_order <- match.arg(treatment_order)
+  multiplier <- match.arg(multiplier)
   n <- length(y)
 
   if (is.null(weights)) {
@@ -43,6 +49,41 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
   d_vals <- sort(unique(d_num))
   L <- length(d_vals) - 1L
   multivalued <- L > 1L
+  unordered <- multivalued && treatment_order == "unordered"
+
+  # Unordered multivalued requires a user-specified monotonicity set C
+  # (Sun 2023 Assumption 2.4(iii)). C is a data frame with columns
+  # d, z_from, z_to; for each row the test uses the inequality
+  # P(Y in B, D = d | Z = z_to) <= P(Y in B, D = d | Z = z_from),
+  # corresponding to a one-sided monotonicity restriction that the
+  # analyst is willing to impose. Without C we cannot proceed.
+  if (unordered) {
+    if (is.null(monotonicity_set)) {
+      cli::cli_abort(c(
+        "{.arg monotonicity_set} is required when {.arg treatment_order} is {.val unordered}.",
+        i = "Supply a {.cls data.frame} with columns {.val d}, {.val z_from}, {.val z_to} listing the triples for which {.code 1{{D_{{z_to}} = d}} <= 1{{D_{{z_from}} = d}}} holds almost surely (Sun 2023 Assumption 2.4(iii))."
+      ))
+    }
+    required <- c("d", "z_from", "z_to")
+    if (!all(required %in% names(monotonicity_set))) {
+      cli::cli_abort(
+        "{.arg monotonicity_set} must have columns {.val {required}}."
+      )
+    }
+    bad_d <- !(monotonicity_set$d %in% d_vals)
+    bad_zf <- !(monotonicity_set$z_from %in% sort(unique(z_num)))
+    bad_zt <- !(monotonicity_set$z_to %in% sort(unique(z_num)))
+    if (any(bad_d)) {
+      cli::cli_abort("{.arg monotonicity_set$d} contains values not in the observed treatment levels.")
+    }
+    if (any(bad_zf) || any(bad_zt)) {
+      cli::cli_abort("{.arg monotonicity_set$z_from} / {.arg z_to} contain values not in the observed instrument levels.")
+    }
+  } else if (!is.null(monotonicity_set)) {
+    cli::cli_warn(
+      "{.arg monotonicity_set} is ignored when {.arg treatment_order} is {.val ordered}; the ordered case uses cumulative-tail inequalities across all adjacent pairs."
+    )
+  }
 
   # Order Z levels ascending by first-stage E[D | Z].
   raw_levels <- sort(unique(z_num))
@@ -79,7 +120,10 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
   #   F_arr[, , ell]         = F_hat(y, D <= d_vals[ell]  | z)  for ell = 1..L
   #   F_arr[, , L + ell]     = F_hat(y, D >= d_vals[ell+1] | z) for ell = 1..L
   # Each "direction" gives L inequalities per instrument pair.
-  n_L_planes <- if (multivalued) 2L * L else 2L
+  # For unordered multivalued we use per-level indicators P(Y <= y, D = d | z)
+  # for each d in d_vals, and the inequality direction is set pairwise
+  # from the user-supplied monotonicity set C.
+  n_L_planes <- if (unordered) (L + 1L) else if (multivalued) 2L * L else 2L
   F_arr <- array(0, dim = c(G, K, n_L_planes))
   n_z <- integer(K)
   idx_by_z <- vector("list", K)
@@ -98,8 +142,14 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
     if (!multivalued) {
       F_arr[, k, 2] <- colSums(w_sub * leY_sub * d_sub) / sw_k
       F_arr[, k, 1] <- colSums(w_sub * leY_sub * (1 - d_sub)) / sw_k
+    } else if (unordered) {
+      # Per-level indicators: F_arr[, k, ell] = P(Y <= y, D = d_vals[ell] | z).
+      for (ell in seq_len(L + 1L)) {
+        ind_eq <- (d_sub == d_vals[ell])
+        F_arr[, k, ell] <- colSums(w_sub * leY_sub * ind_eq) / sw_k
+      }
     } else {
-      # Ordered multivalued D (Sun 2023). For each threshold ell = 1..L:
+      # Ordered multivalued D: cumulative-tail indicators
       #   lower plane: P(Y <= y, D <= d_vals[ell] | z)
       #   upper plane: P(Y <= y, D >= d_vals[ell + 1] | z)
       for (ell in seq_len(L)) {
@@ -111,6 +161,29 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
         F_arr[, k, L + ell] <- colSums(w_sub * leY_sub * ind_ge) / sw_k
       }
     }
+  }
+
+  # Precompute the triples (plane_idx, k_from, k_to) that get tested.
+  # For ordered / binary this is derived from the Z ordering; for
+  # unordered it is read from monotonicity_set.
+  unordered_triples <- NULL
+  if (unordered) {
+    d_to_plane <- stats::setNames(seq_along(d_vals), d_vals)
+    z_to_k <- stats::setNames(seq_along(z_levels), z_levels)
+    plane_idx <- as.integer(d_to_plane[as.character(monotonicity_set$d)])
+    # Labels use user's original D coding where available.
+    label_d <- if (!is.null(d_labels)) {
+      as.character(d_labels[plane_idx])
+    } else {
+      as.character(monotonicity_set$d)
+    }
+    unordered_triples <- data.frame(
+      plane  = plane_idx,
+      k_from = as.integer(z_to_k[as.character(monotonicity_set$z_from)]),
+      k_to   = as.integer(z_to_k[as.character(monotonicity_set$z_to)]),
+      label_d = label_d,
+      stringsAsFactors = FALSE
+    )
   }
 
   # Interval probabilities P_k_d[g1, g2] = F_hat(y_grid[g2], d | z_k) -
@@ -193,15 +266,42 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
     best <- 0
     binding_local <- NULL
     if (K < 2L) return(list(stat = 0, binding = NULL))
-    for (k_low in seq_len(K - 1L)) {
+    if (unordered) {
+      # One triple per row of monotonicity_set: test
+      #   P(Y in B, D = d | Z = z_to) <= P(Y in B, D = d | Z = z_from)
+      # which corresponds to phi(h, g) = P(.. | z_to) - P(.. | z_from) <= 0.
+      for (row_idx in seq_len(nrow(unordered_triples))) {
+        plane_idx <- unordered_triples$plane[row_idx]
+        k_from   <- unordered_triples$k_from[row_idx]
+        k_to     <- unordered_triples$k_to[row_idx]
+        pair_scale <- sqrt(n_z_eff[k_from] * n_z_eff[k_to] /
+                             (n_z_eff[k_from] + n_z_eff[k_to]))
+        P_from <- interval_diff(F_arr_local, k_from, plane_idx)
+        P_to   <- interval_diff(F_arr_local, k_to,   plane_idx)
+        diff_mat <- P_to - P_from
+        se_lo <- min(k_from, k_to); se_hi <- max(k_from, k_to)
+        SE_m <- pair_interval_se(se_lo, se_hi, plane_idx)
+        UT <- upper.tri(diff_mat, diag = TRUE)
+        V <- pair_scale * diff_mat / SE_m
+        V[!UT] <- -Inf
+        m <- max(V)
+        if (m > best) {
+          best <- m
+          pos <- which(V == m, arr.ind = TRUE)[1, ]
+          binding_local <- list(
+            z_from = z_levels[k_from],
+            z_to = z_levels[k_to],
+            direction = paste0("d = ", unordered_triples$label_d[row_idx]),
+            y_lower = if (pos[1] == 1L) -Inf else y_grid[pos[1] - 1L],
+            y_upper = y_grid[pos[2] - 1L]
+          )
+        }
+      }
+    } else for (k_low in seq_len(K - 1L)) {
       for (k_high in (k_low + 1L):K) {
         # Kitagawa (2015) eq. 2.1: the statistic for pair (z_low, z_high)
         # is sqrt(n_low * n_high / (n_low + n_high)) times the sup of
-        # the positive-part difference divided by the plug-in SE. When
-        # cells are unequal, this pair-specific scale differs from the
-        # naive sqrt(n) rescaling applied globally; we incorporate it
-        # per-pair so that the T_n value the user sees matches the
-        # paper's formula exactly.
+        # the positive-part difference divided by the plug-in SE.
         pair_scale <- sqrt(n_z_eff[k_low] * n_z_eff[k_high] /
                              (n_z_eff[k_low] + n_z_eff[k_high]))
         for (dd in dirs) {
@@ -252,6 +352,8 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
     if (!multivalued) {
       d_val <- d_idx - 1L
       raw <- leY * (d_num == d_val)
+    } else if (unordered) {
+      raw <- leY * (d_num == d_vals[d_idx])
     } else if (d_idx <= L) {
       # lower plane: D <= d_vals[ell] where ell = d_idx
       raw <- leY * (d_num <= d_vals[d_idx])
@@ -269,8 +371,19 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
     centred[[d_idx]] <- mat
   }
 
+  draw_multiplier <- switch(multiplier,
+    rademacher = function(nn) sample(c(-1, 1), nn, replace = TRUE),
+    gaussian   = function(nn) stats::rnorm(nn),
+    mammen     = function(nn) {
+      # Mammen (1993) two-point distribution: mean 0, variance 1, skewness 1.
+      phi <- (1 + sqrt(5)) / 2  # golden ratio
+      p   <- (sqrt(5) + 1) / (2 * sqrt(5))
+      ifelse(stats::runif(nn) < p, -(phi - 1), phi)
+    }
+  )
+
   one_boot <- function() {
-    W <- sample(c(-1, 1), n, replace = TRUE)
+    W <- draw_multiplier(n)
     F_star <- array(0, dim = c(G, K, n_L_planes))
     for (d_idx in seq_len(n_L_planes)) {
       C <- centred[[d_idx]]

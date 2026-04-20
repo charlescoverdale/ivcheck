@@ -19,6 +19,9 @@ iv_kitagawa(object, ...)
   weights = NULL,
   parallel = TRUE,
   se_floor = 0.15,
+  treatment_order = c("ordered", "unordered"),
+  monotonicity_set = NULL,
+  multiplier = c("rademacher", "gaussian", "mammen"),
   ...
 )
 
@@ -29,6 +32,9 @@ iv_kitagawa(object, ...)
   weighting = c("variance", "unweighted"),
   weights = NULL,
   parallel = TRUE,
+  treatment_order = c("ordered", "unordered"),
+  monotonicity_set = NULL,
+  multiplier = c("rademacher", "gaussian", "mammen"),
   ...
 )
 
@@ -39,6 +45,9 @@ iv_kitagawa(object, ...)
   weighting = c("variance", "unweighted"),
   weights = NULL,
   parallel = TRUE,
+  treatment_order = c("ordered", "unordered"),
+  monotonicity_set = NULL,
+  multiplier = c("rademacher", "gaussian", "mammen"),
   ...
 )
 }
@@ -81,6 +90,26 @@ distributions with weak first stages suggests a slightly larger
 floor (0.15) keeps empirical size near nominal 5\% without
 measurable power loss in the designs tested. Users reproducing
 Kitagawa's published examples may set \code{se_floor = 0.1} to match.}
+
+\item{treatment_order}{Either \code{"ordered"} (default) or \code{"unordered"}.
+Binary \code{D} is handled identically under both. For multivalued \code{D},
+\code{"ordered"} uses cumulative-tail inequalities
+\code{P(Y <= y, D <= ell | Z)} and \code{P(Y <= y, D >= ell | Z)} across all
+pairs of instrument values, a stronger family of implications than
+Sun (2023) equation 10's \code{d_min}-and-\code{d_max} subset (but still
+valid under Sun's Assumption 2.2). \code{"unordered"} requires a
+user-specified \code{monotonicity_set} naming the (level, z_from, z_to)
+triples for which \verb{1\{D_\{z_to\} = d\} <= 1\{D_\{z_from\} = d\}} is
+assumed almost surely (Sun 2023 Assumption 2.4(iii)).}
+
+\item{monotonicity_set}{A \code{data.frame} with columns \code{d}, \code{z_from},
+\code{z_to} listing the triples that pin down the direction of the
+monotonicity restriction for \code{treatment_order = "unordered"}.
+Ignored when \code{treatment_order = "ordered"}.}
+
+\item{multiplier}{Choice of bootstrap multiplier: \code{"rademacher"}
+(default; +/-1 two-point), \code{"gaussian"} (standard normal), or
+\code{"mammen"} (Mammen 1993 asymmetric two-point).}
 }
 \value{
 An object of class \code{iv_test} with elements:
@@ -100,10 +129,12 @@ configuration of the observed statistic.}
 \description{
 Tests the joint implication of the local exclusion restriction and the
 local monotonicity condition in a discrete-instrument setting.
-Supports binary treatment (Kitagawa 2015) and ordered multivalued
-treatment (Sun 2023). The null is that the instrument is valid. Under
-the null, the conditional joint distribution of \verb{(Y, D | Z)} must
-satisfy stochastic dominance inequalities on cumulative-tail events.
+Supports binary treatment (Kitagawa 2015), ordered multivalued
+treatment (Sun 2023 section 3), and unordered multivalued treatment
+(Sun 2023 section 3.3) under a user-supplied monotonicity set.
+The null is that the instrument is valid. Under the null, the
+conditional joint distribution of \verb{(Y, D | Z)} must satisfy
+stochastic dominance inequalities on cumulative-tail events.
 Rejection is evidence that at least one of exclusion or monotonicity
 fails.
 }

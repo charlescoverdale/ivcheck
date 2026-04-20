@@ -11,6 +11,83 @@ test_that("iv_kitagawa returns an iv_test object with the right structure", {
   expect_equal(length(out$boot_stats), 50L)
 })
 
+test_that("iv_kitagawa treatment_order = 'unordered' requires monotonicity_set", {
+  set.seed(1)
+  n <- 400
+  z <- sample(0:2, n, replace = TRUE)
+  d <- sample(0:2, n, replace = TRUE)
+  y <- rnorm(n)
+  expect_error(
+    iv_kitagawa(y, d, z, n_boot = 10, parallel = FALSE,
+                treatment_order = "unordered"),
+    "monotonicity_set"
+  )
+})
+
+test_that("iv_kitagawa treatment_order = 'unordered' validates column names", {
+  set.seed(1)
+  n <- 400
+  z <- sample(0:2, n, replace = TRUE)
+  d <- sample(0:2, n, replace = TRUE)
+  y <- rnorm(n)
+  bad_ms <- data.frame(level = 0, from = 0, to = 1)
+  expect_error(
+    iv_kitagawa(y, d, z, n_boot = 10, parallel = FALSE,
+                treatment_order = "unordered", monotonicity_set = bad_ms),
+    "columns"
+  )
+})
+
+test_that("iv_kitagawa unordered + monotonicity_set runs and returns valid iv_test", {
+  skip_on_cran()
+  set.seed(1)
+  n <- 800
+  z <- sample(0:2, n, replace = TRUE)
+  prop <- matrix(c(0.5, 0.3, 0.2,
+                   0.3, 0.4, 0.3,
+                   0.2, 0.3, 0.5), nrow = 3, byrow = TRUE)
+  d <- vapply(seq_len(n), function(i) {
+    sample(0:2, 1, prob = prop[z[i] + 1, ])
+  }, integer(1))
+  y <- rnorm(n, mean = d)
+  ms <- data.frame(
+    d = c(0, 1, 2),
+    z_from = c(0, 0, 2),
+    z_to   = c(2, 1, 0)
+  )
+  out <- iv_kitagawa(y, d, z, n_boot = 50, parallel = FALSE,
+                     treatment_order = "unordered",
+                     monotonicity_set = ms)
+  expect_s3_class(out, "iv_test")
+  expect_true(is.finite(out$statistic) && out$statistic >= 0)
+  expect_true(is.finite(out$p_value) && out$p_value >= 0 && out$p_value <= 1)
+  expect_equal(out$treatment_order, "unordered")
+})
+
+test_that("iv_kitagawa multiplier = gaussian runs and returns sensible output", {
+  set.seed(1)
+  n <- 300
+  z <- sample(0:1, n, replace = TRUE)
+  d <- rbinom(n, 1, 0.3 + 0.4 * z)
+  y <- rnorm(n, mean = d)
+  out <- iv_kitagawa(y, d, z, n_boot = 60, parallel = FALSE,
+                     multiplier = "gaussian")
+  expect_s3_class(out, "iv_test")
+  expect_equal(out$multiplier, "gaussian")
+})
+
+test_that("iv_kitagawa multiplier = mammen runs and returns sensible output", {
+  set.seed(1)
+  n <- 300
+  z <- sample(0:1, n, replace = TRUE)
+  d <- rbinom(n, 1, 0.3 + 0.4 * z)
+  y <- rnorm(n, mean = d)
+  out <- iv_kitagawa(y, d, z, n_boot = 60, parallel = FALSE,
+                     multiplier = "mammen")
+  expect_s3_class(out, "iv_test")
+  expect_equal(out$multiplier, "mammen")
+})
+
 test_that("iv_kitagawa rejects continuous d with a clear message", {
   y <- rnorm(100)
   d <- rnorm(100)

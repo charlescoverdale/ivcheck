@@ -163,7 +163,15 @@ Read before using in published work.
 - **`iv_mw` with covariates under weights.** The `weights` argument is fully implemented for `iv_kitagawa`, `iv_testjfe`, and the no-covariate path of `iv_mw`. The CLR series-regression path for `iv_mw` with covariates does not yet propagate weights; planned for v0.1.1.
 - **Fixed-effects IV models.** `iv_kitagawa`, `iv_mw`, and `iv_testjfe` dispatched on a `fixest` model with `| FE |` aborts with a clear error. The discrete-Z tests operate on the raw (Y, D, Z) joint distribution; within-FE residualisation destroys the discrete structure of Z. Workaround: pre-demean Y and D inside each FE cell and pass as raw vectors to the default method. A proper stratified-by-FE variant is on the v0.2.0 roadmap.
 - **Multivariate conditioning in `iv_mw`.** The conditional path supports a single covariate. A tensor-product basis for multivariate `x` is planned for v0.2.0. Multivariate `x` aborts rather than silently dropping additional columns.
-- **Sun (2023) unordered multivalued D.** The ordered-multivalued extension is implemented (cumulative-tail inequalities); the unordered extension in Sun section 5 is not.
+- **Sun (2023) unordered multivalued D.** Supported via `treatment_order = "unordered"` plus a user-supplied `monotonicity_set` (a data frame with columns `d`, `z_from`, `z_to` encoding the direction of the monotonicity restriction per Sun's Assumption 2.4(iii)). See `?iv_kitagawa` for an example.
+
+### Notes on fidelity to the published tests
+
+- **Ordered multivalued `D` tests a richer family of implications than Sun (2023) equation 10.** Sun's Lemma 2.1 derives testable implications using only `d_min` and `d_max` across adjacent `Z` pairs; `ivcheck` tests cumulative-tail inequalities `P(Y <= y, D <= ell | Z)` and `P(Y <= y, D >= ell | Z)` for every intermediate level and every `Z` pair. All inequalities tested hold under Sun's Assumption 2.2, so the test is valid; it is a stronger (more-exhaustive) form of Sun's test rather than an exact port.
+- **`se_floor = 0.15` default.** Kitagawa (2015) informally recommends `xi in [0.05, 0.10]`. The `ivcheck` default (0.15) is chosen from our own 500-rep Monte Carlo, which showed Kitagawa's range is anti-conservative (size 5-11%) under skewed Z and weak first stages at `n < 1500`. Users wanting to reproduce Kitagawa's published examples should set `se_floor = 0.1`.
+- **`iv_testjfe` implements a linearity test form of the FLL overidentification test.** The full @frandsen2023 test uses a flexible basis for `mu_j` against `p_j` plus bounded-slope moment inequalities on the LATE. The flexible-basis extension is planned for v0.2.0; the bounded-slope CLR-style inference is deferred further. Users needing the exact published test should run Frandsen's Stata `testjfe` module.
+- **`iv_mw` CLR path is an independent construction**, not a port of Mourifie-Wan's Matlab code. Series-regression basis, sandwich variance, multiplier bootstrap with Andrews-Soares moment selection follow the CLR framework. Cross-validation against the authors' code is on the v0.2.0 wishlist.
+- **Multiplier bootstrap defaults to Rademacher weights.** `multiplier = "gaussian"` and `multiplier = "mammen"` are also available. Both Kitagawa's and Sun's papers use multiplier-type bootstraps; Sun explicitly uses Rademacher.
 
 ### Interpretation
 

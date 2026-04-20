@@ -240,6 +240,14 @@ Seven limitations apply.
 6. The conditional path of `iv_mw` supports a single covariate. Users passing a matrix of covariates receive a clear error pointing to the tensor-product-basis extension planned for v0.2.0. The current recommendation is to condition on the covariate most plausibly driving heterogeneity in compliance.
 7. Rejection of any of the three tests is evidence of violation but does not localise the failed assumption. Non-rejection is evidence of no detectable violation at level `alpha`, not proof of validity. Report non-rejection as such.
 
+### Notes on fidelity
+
+For transparency, the ordered multivalued `D` path in `iv_kitagawa` tests a richer family of inequalities than @sun2023 equation 10: we sweep over cumulative-tail events `P(Y <= y, D <= l | Z)` and `P(Y <= y, D >= l | Z)` for every intermediate `l` and every `Z` pair, while Sun's derivation uses only `d_min` and `d_max` across adjacent pairs. All inequalities tested hold under Sun's Assumption 2.2, so the test controls size; the expanded family gives a more exhaustive test rather than the minimal-implication version of the paper. The unordered case (Sun section 3.3) is available via `treatment_order = "unordered"` with a user-specified `monotonicity_set` encoding the direction of the monotonicity restriction.
+
+`iv_testjfe` implements the linearity-test form of the @frandsen2023 overidentification test: we fit `mu_j` against `p_j` by WLS and compare the weighted residual SS to a `chi^2_{K-2}` reference. FLL's published test uses a flexible basis plus bounded-slope moment-inequality constraints on the LATE; our v0.1.0 form is a simpler necessary-condition check. Users wanting the exact published test should run Frandsen's Stata `testjfe` module; a flexible-basis extension and CLR-style bounded-slope inference are planned for v0.2.0.
+
+The `iv_mw` CLR path is an independent implementation of the @chernozhukov2013 intersection-bounds framework (series-regression conditional CDF, robust plug-in SE, @andrews2010 adaptive moment selection) rather than a port of Mourifie-Wan's Matlab code. Cross-validation against the authors' code is on the v0.2.0 wishlist. The bootstrap multiplier defaults to Rademacher but `multiplier = "gaussian"` and `multiplier = "mammen"` are available for robustness checks.
+
 ## Conclusion
 
 \CRANpkg{ivcheck} closes a tooling gap between the econometric literature on LATE falsification and applied IV practice. The package is available on CRAN; source and issue tracker at \url{https://github.com/charlescoverdale/ivcheck}.
