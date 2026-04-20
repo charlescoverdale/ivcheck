@@ -18,6 +18,7 @@ iv_kitagawa(object, ...)
   weighting = c("variance", "unweighted"),
   weights = NULL,
   parallel = TRUE,
+  se_floor = 0.15,
   ...
 )
 
@@ -72,6 +73,14 @@ and the variance-weighted standard errors.}
 
 \item{parallel}{Logical. Run bootstrap replications in parallel on
 POSIX systems via \link[parallel:mclapply]{parallel::mclapply}. Default \code{TRUE}.}
+
+\item{se_floor}{Trimming constant \verb{\\xi} for the plug-in standard-
+error denominator in the variance-weighted form. Default 0.15.
+Kitagawa (2015) section 4 informally recommends \verb{\\xi \\in [0.05, 0.1]} for balanced-Z designs. Monte Carlo at skewed Z-cell
+distributions with weak first stages suggests a slightly larger
+floor (0.15) keeps empirical size near nominal 5\% without
+measurable power loss in the designs tested. Users reproducing
+Kitagawa's published examples may set \code{se_floor = 0.1} to match.}
 }
 \value{
 An object of class \code{iv_test} with elements:

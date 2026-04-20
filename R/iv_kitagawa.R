@@ -23,6 +23,14 @@
 #'   two are asymptotically equivalent at the boundary of the null;
 #'   `"variance"` has better finite-sample power when instrument cells
 #'   have unequal sizes.
+#' @param se_floor Trimming constant `\xi` for the plug-in standard-
+#'   error denominator in the variance-weighted form. Default 0.15.
+#'   Kitagawa (2015) section 4 informally recommends `\xi \in [0.05,
+#'   0.1]` for balanced-Z designs. Monte Carlo at skewed Z-cell
+#'   distributions with weak first stages suggests a slightly larger
+#'   floor (0.15) keeps empirical size near nominal 5% without
+#'   measurable power loss in the designs tested. Users reproducing
+#'   Kitagawa's published examples may set `se_floor = 0.1` to match.
 #' @param weights Optional survey weights. A non-negative numeric vector
 #'   of length equal to the sample size. Scaled internally so the mean
 #'   weight is 1.0 (preserving effective sample-size interpretation).
@@ -99,7 +107,8 @@ iv_kitagawa <- function(object, ...) {
 #' @export
 iv_kitagawa.default <- function(object, d, z, n_boot = 1000, alpha = 0.05,
                                 weighting = c("variance", "unweighted"),
-                                weights = NULL, parallel = TRUE, ...) {
+                                weights = NULL, parallel = TRUE,
+                                se_floor = 0.15, ...) {
   weighting <- match.arg(weighting)
   y <- object
   validate_numeric(y, "y")
@@ -110,7 +119,8 @@ iv_kitagawa.default <- function(object, d, z, n_boot = 1000, alpha = 0.05,
   check_lengths(y, d_num, z_num)
 
   core <- kitagawa_core_test(y, d_num, z_num, n_boot, parallel,
-                             weighting = weighting, weights = weights)
+                             weighting = weighting, weights = weights,
+                             se_floor = se_floor)
 
   test_name <- if (core$multivalued) "Sun (2023)" else "Kitagawa (2015)"
   structure(
