@@ -1,0 +1,300 @@
+---
+title: "ivcheck"
+subtitle: "Tests of IV validity in R"
+author: "Charles Coverdale"
+institute: "London, United Kingdom"
+date: "2026-04-20"
+date-format: "MMMM YYYY"
+
+format:
+  beamer:
+    aspectratio: 169
+    fontsize: 11pt
+    navigation: empty
+    theme: default
+    colortheme: default
+    fonttheme: default
+    pdf-engine: xelatex
+    include-in-header: header.tex
+    slide-level: 2
+    keep-tex: false
+    fig-align: center
+    classoption:
+      - t
+---
+
+## The question
+
+\vspace{1.5em}
+
+\begin{center}
+\Large\bfseries\color{econblue}
+Is this instrumental variable doing the job?
+\end{center}
+
+\vspace{1em}
+
+\begin{center}
+\normalsize\itshape
+Empirical IV papers routinely estimate a LATE and move on. The
+identifying assumptions are testable, yet the tests are almost
+never reported.
+\end{center}
+
+::: notes
+Open on the question, not the package. The LATE framework makes two
+empirical commitments: exclusion and monotonicity. Both are testable.
+Almost no applied paper runs the test. 30 seconds.
+:::
+
+
+## Why it matters
+
+- **Applied econometricians**: IV designs are used by every top-5 journal, yet fewer than 5 percent of published papers report a falsification test
+- **Referees**: limited tooling makes the test hard to ask for, even when the design cries out for it
+- **Methodologists**: three landmark tests exist (2015, 2017, 2023) but live only as author-hosted Stata and Matlab scripts
+- **Replication**: published falsification claims cannot be reproduced without porting the tests by hand
+
+::: notes
+Name the stakeholders. Emphasise: the tests exist, the gap is tooling.
+Bring the referee point out loud: easier to ask if it takes one line.
+60 seconds.
+:::
+
+
+## What is already out there
+
+- **`fixest`, `ivreg`**: estimate IV models, but do not test validity\footnote{\scriptsize Berg\'e (2018), \textit{fixest}; Kleiber \& Zeileis (2020), \textit{ivreg}.}
+- **`ivDiag`** (Lal, Lockhart, Xu, Zu 2024): first-stage F, weak-IV, LATE bounds, partial robustness; does not implement the LATE-validity tests
+- **Stata `testjfe`** (Frandsen, BYU 2020): FLL test only; no R equivalent
+- **Author replication archives**: per-paper Matlab, Gauss, Stata; not packaged
+
+\vspace{0.5em}
+
+The gap: **no single R package runs the published falsification tests on a fitted IV model.**
+
+::: notes
+Respectful on existing packages. The gap is about falsification-test
+coverage, not about IV estimation. 45 seconds.
+:::
+
+
+## What ivcheck offers
+
+1. **Coverage**: three published tests plus a one-shot wrapper that inspects a fitted IV model and runs every applicable test
+2. **Dispatch**: S3 methods on `fixest::feols` and `ivreg::ivreg` objects, so the tests drop in after an existing IV estimation
+3. **Fidelity**: variance-weighted Kitagawa, full CLR with adaptive moment selection for Mourifi\'e-Wan, chi-squared asymptotic plus bootstrap for FLL
+
+\vspace{0.5em}
+
+Source on GitHub, CRAN submission in progress\footnote{\scriptsize Coverdale (2026), \textit{ivcheck: Tests of IV Validity in R}, available at github.com/charlescoverdale/ivcheck.}.
+
+::: notes
+Three selling points. Emphasise the wrapper: user does not have to
+know which test applies. Dispatch makes it composable with existing
+workflows. 45 seconds.
+:::
+
+
+## Three testable implications
+
+\vspace{0.3em}
+
+**Kitagawa (2015)** \hfill for discrete Z, binary D:
+\begin{equation}
+\sup_{y \leq y'}\, \big[P(Y \in [y, y'], D = d \mid Z = z_L) - P(Y \in [y, y'], D = d \mid Z = z_H)\big]^{+}
+\end{equation}
+
+**Mourifi\'e-Wan (2017)** \hfill same null, conditional on covariates:
+\begin{equation}
+E[m(W;\ \theta) \mid X] \leq 0 \text{ for all } X
+\end{equation}
+
+**Frandsen-Lefgren-Leslie (2023)** \hfill judge-IV designs, `K` judges:
+\begin{equation}
+T_n = \sum_j n_j (\hat\mu_j - \hat\alpha - \hat\beta \hat p_j)^2 / \hat\sigma^2 \sim \chi^2_{K-2}
+\end{equation}
+
+::: notes
+Three equations, three tests. Do not read them out. Point at the
+positive-part KS for Kitagawa, the CLR conditional moment inequality
+for MW, and the overidentification chi-squared for FLL. 60 seconds.
+:::
+
+
+## Package architecture
+
+::: columns
+::: {.column width="58%"}
+
+Core exports:
+
+- **`iv_kitagawa()`**: binary D, discrete Z
+- **`iv_mw()`**: same, plus covariate path
+- **`iv_testjfe()`**: judge-IV design
+- **`iv_check()`**: wrapper, runs all applicable
+- **`iv_power()`**: Monte Carlo power curves
+
+Dispatch: `fixest`, `ivreg`. Deps: `cli`, `stats`, `parallel`.
+
+:::
+::: {.column width="40%"}
+
+\begin{block}{Uniform output}
+Every test returns an \texttt{iv\_test} object:
+
+\texttt{statistic} | \texttt{p\_value} | \texttt{binding}
+
+{\small Print, plot, summary methods; composes with \texttt{modelsummary}.}
+\end{block}
+
+:::
+:::
+
+::: notes
+Two-column layout shows exports and schema at once. Emphasise the
+iv_check one-shot pattern. 45 seconds.
+:::
+
+
+## Minimal working example
+
+```r
+library(ivcheck)
+library(fixest)
+
+data(card1995)
+m <- feols(
+  lwage ~ age + black + south | college ~ near_college,
+  data = card1995
+)
+
+iv_check(m, n_boot = 500)
+```
+
+\footnotesize
+One line after the IV estimation. `iv_check()` inspects the model,
+detects a binary treatment and a binary instrument, runs Kitagawa and
+Mourifi\'e-Wan, and returns a tidy verdict table.
+
+::: notes
+Live-read the code. Emphasise one line. No arguments beyond the
+model and the bootstrap budget. 45 seconds.
+:::
+
+
+## Case study: Card (1995) proximity to college
+
+**Data.** 3{,}003 observations from the National Longitudinal Survey of Young Men (Card 1995), distributed on CRAN via the `wooldridge` package.
+
+**Question.** *Does the standard college / near-college IV satisfy the LATE validity conditions on the discretised treatment?*
+
+**Why this case.** Canonical applied IV example. Tested by Kitagawa (2015) and replicated by Mourifi\'e-Wan (2017), both rejecting on the discretised form\footnote{\scriptsize Kitagawa (2015), Table 2; Mourifi\'e-Wan (2017), Table 1.}. Our replication should reproduce the rejection.
+
+::: notes
+Setup slide. No results yet. Name the data, the question, why it is
+the right test case. Point forward to the bootstrap distribution.
+45 seconds.
+:::
+
+
+## Card rejects: Kitagawa statistic 5.25, p < 0.01
+
+```{=latex}
+\begin{center}
+\includegraphics[height=0.68\textheight]{figures/fig-card-bootstrap.pdf}
+\end{center}
+
+\vspace{-0.2em}
+
+{\footnotesize\itshape Bootstrap null distribution of the Kitagawa statistic
+on Card (1995), N = 3{,}003. Observed statistic (red line) sits far in
+the upper tail: p-value below 0.01 at 500 bootstrap draws. Binding
+interval \textbf{[6.25, 7.78]} on log wage, d = 0 direction. Source:
+Card (1995), NLS of Young Men; replication via \texttt{ivcheck::card1995}.}
+```
+
+::: notes
+The money slide. 90 seconds. Walk through: red vertical line is the
+observed statistic, histogram is the bootstrap null under the tested
+IV-validity assumption. The observed value sits in the extreme upper
+tail. Binding interval tells us the violation is at the upper end of
+the log wage distribution, in the d = 0 direction.
+:::
+
+
+## FLL asymptotic distribution matches Monte Carlo
+
+```{=latex}
+\begin{center}
+\includegraphics[height=0.68\textheight]{figures/fig-testjfe-null.pdf}
+\end{center}
+
+\vspace{-0.2em}
+
+{\footnotesize\itshape Empirical null distribution of \texttt{iv\_testjfe}
+at K = 20 judges and N = 3{,}000 over 200 replications. Histogram is
+the empirical T\_n density; red curve is the asymptotic $\chi^2_{18}$.
+Test is mildly conservative (empirical size 1.5 percent at nominal
+5 percent); the bootstrap option trims this to 2.5 percent.}
+```
+
+::: notes
+Diagnostic slide. 60 seconds. Empirical agreement with chi-squared in
+the bulk; slight compression in the tail comes from estimated p_j
+entering as a regressor, a classical errors-in-variables effect.
+Recommend the bootstrap method for publication-grade p-values at
+modest n_j.
+:::
+
+
+## What ivcheck does not yet do
+
+- **Continuous instruments**: discretise into quantile bins for now; Andrews-Shi continuous-Z extension in v0.2.0
+- **Fuzzy regression discontinuity**: has its own test (Arai et al. 2022); `iv_frd()` deferred to v0.2.0
+- **Fixed-effects IV models**: aborts with a clear message; pre-demean within FE cells and call the default method
+- **Stata cross-validation**: numerical agreement with Frandsen's `testjfe` and Chernozhukov et al.\ `clrtest` pending
+
+\vspace{0.5em}
+
+**v0.2.0**: `iv_frd()`, continuous-Z path, multivariate-x in `iv_mw`, tensor-product basis, FLL bounded-slope moment inequalities.
+
+::: notes
+Honest limitations. Frame the roadmap as a commitment. 45 seconds.
+:::
+
+
+## Contact, code, paper
+
+::: columns
+::: {.column width="62%"}
+
+```{=latex}
+{\large\bfseries Charles Coverdale\par}
+\vspace{0.5em}
+\texttt{charles.f.coverdale@gmail.com}\\
+\texttt{github.com/charlescoverdale/ivcheck}\\
+\texttt{charlescoverdale.github.io/publications}
+\vspace{0.9em}
+
+\textbf{Acknowledgements.} Thanks to Toru Kitagawa, Ismael Mourifi\'e, Yuanyuan Wan, Brigham Frandsen, Lars Lefgren, and Emily Leslie for the methodology and publicly-available replication archives. Card (1995) data via the \textsc{CRAN} \texttt{wooldridge} package.
+```
+
+:::
+::: {.column width="35%"}
+
+\begin{center}
+\includegraphics[width=0.85\linewidth]{figures/qrcode_paper.png}
+
+\vspace{0.3em}
+
+{\footnotesize\itshape Scan for paper PDF}
+\end{center}
+
+:::
+:::
+
+::: notes
+Close cleanly. Name, email, GitHub, publications URL. QR code points
+to the publications page. Open for questions.
+:::
