@@ -16,10 +16,24 @@
 #' @noRd
 kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
                                weighting = c("variance", "unweighted"),
+                               weights = NULL,
                                se_floor = 0.001,
                                y_grid_size = 50L) {
   weighting <- match.arg(weighting)
   n <- length(y)
+
+  if (is.null(weights)) {
+    w <- rep(1, n)
+  } else {
+    if (length(weights) != n) {
+      cli::cli_abort("{.arg weights} must have length equal to the sample size.")
+    }
+    if (any(weights < 0) || any(!is.finite(weights))) {
+      cli::cli_abort("{.arg weights} must be finite and non-negative.")
+    }
+    # Rescale so mean = 1 (preserves effective sample size interpretation)
+    w <- weights * n / sum(weights)
+  }
 
   # Order Z levels ascending by first-stage E[D | Z].
   raw_levels <- sort(unique(z_num))
@@ -51,6 +65,8 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
   n_z <- integer(K)
   idx_by_z <- vector("list", K)
 
+  # Effective sample sizes (used for scaling under weighting).
+  n_z_eff <- numeric(K)
   for (k in seq_len(K)) {
     idx <- which(z_num == z_levels[k])
     idx_by_z[[k]] <- idx
@@ -58,8 +74,12 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
     if (n_z[k] == 0L) next
     d_sub <- d_num[idx]
     leY_sub <- leY[idx, , drop = FALSE]
-    F_arr[, k, 2] <- colSums(leY_sub * d_sub) / n_z[k]
-    F_arr[, k, 1] <- colSums(leY_sub * (1 - d_sub)) / n_z[k]
+    w_sub <- w[idx]
+    sw_k <- sum(w_sub)
+    n_z_eff[k] <- sw_k
+    # Weighted empirical joint CDF: (1/sum w_i) sum w_i * 1{...}
+    F_arr[, k, 2] <- colSums(w_sub * leY_sub * d_sub) / sw_k
+    F_arr[, k, 1] <- colSums(w_sub * leY_sub * (1 - d_sub)) / sw_k
   }
 
   # Interval probabilities P_k_d[g1, g2] = F_hat(y_grid[g2], d | z_k) -
@@ -93,8 +113,10 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
         for (d_idx in 1:2) {
           P_low  <- interval_diff(F_arr, k_low,  d_idx)
           P_high <- interval_diff(F_arr, k_high, d_idx)
-          w_low  <- n_z[k_high] / n
-          w_high <- n_z[k_low]  / n
+          # Weighted mixture variance using effective sample sizes.
+          total_eff <- n_z_eff[k_low] + n_z_eff[k_high]
+          w_low  <- n_z_eff[k_high] / total_eff
+          w_high <- n_z_eff[k_low]  / total_eff
           var_mat <- w_low  * P_low  * (1 - P_low)  +
                      w_high * P_high * (1 - P_high)
           SE_cache[, , k_low, k_high, d_idx] <- pmax(sqrt(pmax(var_mat, 0)),
@@ -162,20 +184,20 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
   }
 
   obs <- compute_stat(F_arr)
-  # Kitagawa (eq. 2.1) scales the statistic by sqrt(n_low * n_high / n)
-  # for binary Z; we use sqrt(n) * stat_scalefree where stat_scalefree
-  # is the per-unit-SE max positive-part interval difference.
+  # Kitagawa (eq. 2.1) scales by sqrt(n_low * n_high / n_total). Under
+  # survey weights the effective sample sizes replace raw counts.
+  n_eff_total <- sum(n_z_eff)
   scale_n <- if (weighting == "variance") {
-    # Use the geometric mean of the pair sample sizes (average across
-    # pairs when K > 2 via sqrt(n_bar * n / 2) as a rough proxy). Under
-    # balanced binary Z, sqrt(n/4 * n / (n/2)) = sqrt(n/2) approximately.
-    sqrt(n / K)
+    sqrt(n_eff_total / K)
   } else {
-    sqrt(n)
+    sqrt(n_eff_total)
   }
   T_n <- scale_n * obs$stat
 
-  # Precompute centred indicator matrices for the multiplier bootstrap.
+  # Precompute weight-scaled centred indicator matrices for the
+  # multiplier bootstrap. Each observation's contribution to the bootstrap
+  # F^* process is w_i * (indicator - F_hat) multiplied by a Rademacher
+  # weight. Normalisation uses the per-judge sum of weights (sw_k).
   centred <- list()
   for (d_idx in 1:2) {
     d_val <- d_idx - 1L
@@ -184,8 +206,9 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
     for (k in seq_len(K)) {
       idx <- idx_by_z[[k]]
       if (length(idx) == 0L) next
-      mat[idx, ] <- raw[idx, , drop = FALSE] -
-        matrix(F_arr[, k, d_idx], nrow = length(idx), ncol = G, byrow = TRUE)
+      # w * (indicator - F_hat)
+      mat[idx, ] <- w[idx] * (raw[idx, , drop = FALSE] -
+        matrix(F_arr[, k, d_idx], nrow = length(idx), ncol = G, byrow = TRUE))
     }
     centred[[d_idx]] <- mat
   }
@@ -199,7 +222,7 @@ kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
         idx <- idx_by_z[[k]]
         if (length(idx) == 0L) next
         F_star[, k, d_idx] <-
-          crossprod(W[idx], C[idx, , drop = FALSE])[1, ] / n_z[k]
+          crossprod(W[idx], C[idx, , drop = FALSE])[1, ] / n_z_eff[k]
       }
     }
     compute_stat(F_star)$stat

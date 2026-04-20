@@ -102,20 +102,20 @@ iv_mw.default <- function(object, d, z, x = NULL,
   z_num <- validate_discrete(z, "z")
   n <- as.integer(check_lengths(y, d_num, z_num))
 
-  if (!is.null(weights)) {
-    cli::cli_warn(
-      "The {.arg weights} argument is not yet implemented and is ignored in v0.1.0."
-    )
-  }
   if (!is.null(grid)) {
     cli::cli_warn(
       "The {.arg grid} argument is deprecated; use {.arg x_grid_size} and {.arg y_grid_size}."
     )
   }
+  if (!is.null(weights) && !is.null(x)) {
+    cli::cli_warn(
+      "The {.arg weights} argument is not yet implemented for the conditional (x) path; it will be applied only to the no-x delegation or ignored under conditional inference."
+    )
+  }
 
   if (is.null(x)) {
     core <- kitagawa_core_test(y, d_num, z_num, n_boot, parallel,
-                               weighting = "variance")
+                               weighting = "variance", weights = weights)
     return(structure(
       list(
         test = "Mourifie-Wan (2017)",

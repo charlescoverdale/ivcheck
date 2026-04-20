@@ -22,8 +22,11 @@
 #'   two are asymptotically equivalent at the boundary of the null;
 #'   `"variance"` has better finite-sample power when instrument cells
 #'   have unequal sizes.
-#' @param weights Optional survey weights. Not yet implemented; reserved
-#'   for v0.2.0.
+#' @param weights Optional survey weights. A non-negative numeric vector
+#'   of length equal to the sample size. Scaled internally so the mean
+#'   weight is 1.0 (preserving effective sample-size interpretation).
+#'   Applied to the empirical CDFs, the bootstrap multiplier process,
+#'   and the variance-weighted standard errors.
 #' @param parallel Logical. Run bootstrap replications in parallel on
 #'   POSIX systems via [parallel::mclapply]. Default `TRUE`.
 #' @param ... Further arguments passed to methods.
@@ -99,14 +102,8 @@ iv_kitagawa.default <- function(object, d, z, n_boot = 1000, alpha = 0.05,
   z_num <- validate_discrete(z, "z")
   check_lengths(y, d_num, z_num)
 
-  if (!is.null(weights)) {
-    cli::cli_warn(
-      "The {.arg weights} argument is not yet implemented and is ignored in v0.1.0."
-    )
-  }
-
   core <- kitagawa_core_test(y, d_num, z_num, n_boot, parallel,
-                             weighting = weighting)
+                             weighting = weighting, weights = weights)
 
   structure(
     list(

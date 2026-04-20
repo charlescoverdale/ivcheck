@@ -102,16 +102,22 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
   validate_numeric(y, "y")
   d_num <- validate_treatment_discrete(d, "d", max_levels = 20L)
   z_num <- validate_discrete(z, "z", max_levels = 500L)
-  n <- check_lengths(y, d_num, z_num)
+  n <- as.integer(check_lengths(y, d_num, z_num))
 
   # Capture treatment levels BEFORE any residualisation on covariates.
   d_vals <- sort(unique(d_num))
   M <- length(d_vals) - 1L
 
-  if (!is.null(weights)) {
-    cli::cli_warn(
-      "The {.arg weights} argument is not yet implemented and is ignored in v0.1.0."
-    )
+  if (is.null(weights)) {
+    w <- rep(1, n)
+  } else {
+    if (length(weights) != n) {
+      cli::cli_abort("{.arg weights} must have length equal to the sample size.")
+    }
+    if (any(weights < 0) || any(!is.finite(weights))) {
+      cli::cli_abort("{.arg weights} must be finite and non-negative.")
+    }
+    w <- weights * n / sum(weights)
   }
 
   # Residualise y and the treatment-indicator columns on x if supplied.
@@ -148,17 +154,20 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
     )
   }
 
-  # Per-judge moments. For multivalued d, P_j is a (K x M) matrix of
-  # per-judge per-treatment-level propensities (dropping the reference
-  # category d = 0). For binary d this reduces to a K-vector.
-  n_j <- vapply(judges, function(j) sum(z_num == j), integer(1))
-  mu_j <- vapply(judges, function(j) mean(y[z_num == j]), numeric(1))
+  # Per-judge moments under weighting: n_j is effective (weighted) sample
+  # size; mu_j and P_j use weighted means.
+  n_j <- vapply(judges, function(j) sum(w[z_num == j]), numeric(1))
+  mu_j <- vapply(judges, function(j) {
+    idx <- which(z_num == j)
+    sum(w[idx] * y[idx]) / sum(w[idx])
+  }, numeric(1))
   if (M == 1L) {
-    p_j <- vapply(judges, function(j) mean(d_num[z_num == j]), numeric(1))
+    p_j <- vapply(judges, function(j) {
+      idx <- which(z_num == j)
+      sum(w[idx] * d_num[idx]) / sum(w[idx])
+    }, numeric(1))
     P_design <- cbind(1, p_j)
   } else {
-    # Build per-level indicators, optionally residualising on x, then
-    # average per judge.
     P_design <- matrix(0, nrow = K, ncol = M + 1L)
     P_design[, 1L] <- 1
     for (m in seq_len(M)) {
@@ -169,7 +178,8 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
         ind <- as.numeric(stats::residuals(stats::lm.fit(design, ind)))
       }
       P_design[, m + 1L] <- vapply(judges, function(j) {
-        mean(ind[z_num == j])
+        idx <- which(z_num == j)
+        sum(w[idx] * ind[idx]) / sum(w[idx])
       }, numeric(1))
     }
   }
@@ -201,9 +211,11 @@ iv_testjfe.default <- function(object, d, z, x = NULL, n_boot = 1000,
   for (j_idx in seq_len(K)) {
     idx <- which(z_num == judges[j_idx])
     u_sub <- u_i[idx]
-    ss_within <- ss_within + sum((u_sub - mean(u_sub))^2)
+    w_sub <- w[idx]
+    u_mean <- sum(w_sub * u_sub) / sum(w_sub)
+    ss_within <- ss_within + sum(w_sub * (u_sub - u_mean)^2)
   }
-  df_within <- n - K
+  df_within <- sum(w) - K
   sigma2_hat <- if (df_within > 0) ss_within / df_within else NA_real_
 
   T_n <- if (is.finite(sigma2_hat) && sigma2_hat > 0) {

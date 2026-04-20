@@ -72,8 +72,11 @@ model residual process. Asymptotic is fast and accurate for
 moderate \code{K}; bootstrap is preferred for small \code{K} or if
 errors are far from normal.}
 
-\item{weights}{Optional survey weights. Not yet implemented; reserved
-for v0.2.0.}
+\item{weights}{Optional survey weights. A non-negative numeric vector
+of length equal to the sample size. Scaled internally so the mean
+weight is 1.0 (preserving effective sample-size interpretation).
+Applied to the empirical CDFs, the bootstrap multiplier process,
+and the variance-weighted standard errors.}
 
 \item{parallel}{Logical. Run bootstrap replications in parallel on
 POSIX systems via \link[parallel:mclapply]{parallel::mclapply}. Default \code{TRUE}.}
