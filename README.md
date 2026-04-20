@@ -182,6 +182,7 @@ The v0.1.0 scope limitation for `iv_testjfe()` is **multivalued treatment** only
 - **Kitagawa vs Mourifie-Wan with covariates.** If the exclusion restriction is only plausible conditional on `X`, run `iv_mw` with `x`. Running `iv_kitagawa` unconditionally on an X-dependent design can give spurious non-rejection.
 - **Many-instrument / judge regimes.** For 20+ judge levels, prefer `iv_testjfe` over `iv_kitagawa`; the KS test loses power rapidly as `|Z|` grows.
 - **Bootstrap size.** `n_boot = 1000` (default) is fine for publication-grade p-values. Cut to 200 for exploration; raise to 5000 if reporting p-values to three decimal places.
+- **Finite-sample size at skewed Z with weak first stages.** Monte Carlo at the nominal 5% level shows the Kitagawa test is conservative (0-1.5% rejection) under equal Z-cell balance. Under skewed Z-cell balance (e.g. 35/65) with a weak first stage (e.g. `P(D=1|Z_low) ~ 0.3`, `P(D=1|Z_high) ~ 0.4`), empirical size is approximately nominal once `N` is greater than about 1500; at smaller `N` the test can be anti-conservative (empirical size of 5-10%). Users with small samples, skewed Z, and weak first stages should interpret marginal rejections cautiously or collect more data.
 
 ### Language implementations
 

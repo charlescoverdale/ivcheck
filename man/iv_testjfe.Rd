@@ -156,6 +156,7 @@ of Local Average Treatment Effects. \emph{Econometrica}, 62(2), 467-475.
 \code{\link[=iv_check]{iv_check()}} for a one-shot wrapper that runs all applicable tests.
 
 Other iv_tests: 
+\code{\link{iv_hm}()},
 \code{\link{iv_kitagawa}()},
 \code{\link{iv_mw}()}
 }

@@ -17,7 +17,7 @@
 kitagawa_core_test <- function(y, d_num, z_num, n_boot, parallel,
                                weighting = c("variance", "unweighted"),
                                weights = NULL,
-                               se_floor = 0.001,
+                               se_floor = 0.07,
                                y_grid_size = 50L) {
   weighting <- match.arg(weighting)
   n <- length(y)
