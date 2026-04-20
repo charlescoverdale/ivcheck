@@ -27,7 +27,7 @@ Two added lines, a falsification test the referee is almost guaranteed to ask ab
 
 | Function | Paper | Case |
 |---|---|---|
-| `iv_kitagawa()` | Kitagawa (2015) *Econometrica* | Binary D, discrete Z |
+| `iv_kitagawa()` | Kitagawa (2015) *Econometrica* / Sun (2023) *JoE* | Binary or multivalued ordered D, discrete Z |
 | `iv_mw()` | Mourifie-Wan (2017) *ReStat* | Binary D, discrete Z, with covariates |
 | `iv_testjfe()` | Frandsen-Lefgren-Leslie (2023) *AER* | Judge / group IV design |
 | `iv_check()` | (this package) | Runs all applicable tests on a fitted IV model |
@@ -164,10 +164,9 @@ Read before using in published work.
 
 ### Scope (v0.1.0 does not cover)
 
-- **Continuous instruments.** Discretise to bins (quartiles, quintiles) before passing to `iv_kitagawa` or `iv_mw`. A continuous-Z extension (Kitagawa-Sun 2021) is planned for v0.2.0.
-- **Multivalued treatment.** All three tests assume binary `D`. `iv_sun()` (Sun 2023) is planned.
-- **Fuzzy regression discontinuity.** Arai-Hsu-Kitagawa-Mourifie-Wan (2022) is the right test; `iv_frd()` is planned.
-- **Survey weights.** The `weights` argument is reserved but not yet implemented.
+- **Continuous instruments.** All three tests require a discrete `Z`. For continuous instruments, discretise into quantile bins (quartiles or quintiles) before passing to `iv_kitagawa` or `iv_mw`. This is standard practice in the applied literature and costs a modest amount of power. A formal nonparametric continuous-`Z` extension (e.g. the local-moment-inequality framework of Andrews and Shi 2013) is on the v0.2.0 roadmap.
+- **Fuzzy regression discontinuity.** FRD has its own testable implications at the cutoff [@arai2022]. Handling them requires different infrastructure (running variable, bandwidth selection, bias correction) that does not fit the current `iv_test`-on-fitted-IV-model spine; a dedicated `iv_frd()` function is planned for v0.2.0.
+- **`iv_mw` with covariates under weights.** The `weights` argument is fully implemented for the unconditional path and for the FLL judge test, but the CLR series-regression path for `iv_mw` with covariates does not yet propagate weights. Use `iv_kitagawa` directly with weights if you need weighted inference without covariates, or wait for v0.1.1.
 
 ### Faithfulness to the published tests
 
@@ -191,12 +190,11 @@ As of 2026-04-19 there is no equivalent package on PyPI. Kitagawa (2015) has Mat
 ## Planned for future versions
 
 - `iv_hm()`: Huber-Mellace (2015, *ReStat*) mean-based moment-inequality form, complementary to the CDF form of Kitagawa
-- `iv_sun()`: Sun (2023, *JoE*) multivalued / ordered treatment
 - `iv_frd()`: Arai, Hsu, Kitagawa, Mourifie, Wan (2022, *QE*) fuzzy regression discontinuity
-- `iv_kitagawa_x()`: Sun-Yu (2024) covariates extension of Kitagawa
-- Survey-weighted variants of all three v0.1.0 tests
-- Rcpp fast path for the multiplier bootstrap
-- Full nonparametric FLL restricted-LS test
+- Continuous-instrument extension via Andrews and Shi (2013) conditional-moment-inequality inference
+- Weighted inference in the `iv_mw` conditional (x) series-regression path
+- Rcpp fast path for the interval-sup multiplier bootstrap
+- Full flexible-basis FLL restricted-LS test with Andrews-Soares bounded-slope moment selection
 
 ## Functions
 

@@ -138,6 +138,8 @@ The `method = "bootstrap"` option replaces the chi-squared reference with a mult
 
 Section 4 of Frandsen, Lefgren, and Leslie [-@frandsen2023] extends the test to multivalued `D`. For `D` with `M + 1` distinct values, the scalar propensity `p_j` becomes an `M`-vector, the fit becomes a multiple WLS regression of `mu_j` on `(P(D = 1 | J), ..., P(D = M | J))`, and the reference distribution is `chi^2_{K - M - 1}`. `iv_testjfe` supports both binary and multivalued treatments; the extension requires no additional user input.
 
+The Kitagawa (2015) and Mourifie-Wan (2017) tests have an analogous extension to multivalued treatment via Sun [-@sun2023], who generalises the stochastic-dominance inequalities to cumulative-tail events `P(Y <= y, D <= d | Z)` and `P(Y <= y, D >= d | Z)`. `iv_kitagawa` implements this extension transparently: when the treatment vector has more than two distinct values, the test label switches from "Kitagawa (2015)" to "Sun (2023)" and the statistic aggregates violations across `2M` inequality families instead of `2`. Sun's asymptotic validity and bootstrap procedure carry through from the binary case.
+
 ### Diagnostic output
 
 The returned object includes the `K x K` matrix `pairwise_late` of pairwise Wald estimates (binary case only), and `worst_pair`, the judge pair whose Wald LATE deviates most from the fitted slope. These are diagnostic in the sense of the paper's figures: a pair whose Wald LATE is far from the common slope is the first place to look when investigating a rejection.
@@ -208,15 +210,13 @@ Figure \ref{fig:pairwise} shows the pairwise Wald LATE matrix for the violation 
 
 ## Limitations
 
-Seven limitations apply.
+Five limitations apply.
 
 1. \CRANpkg{ivcheck} is a testing package, not an estimator. Use \CRANpkg{fixest} or \CRANpkg{ivreg} for the IV estimation itself; \CRANpkg{ivcheck} operates on the fitted model or on raw vectors.
-2. Version 0.1.0 supports discrete instruments only. Continuous `Z` must be discretised into bins before passing to `iv_kitagawa` or `iv_mw`. A continuous-`Z` extension [@kitagawa2022] is on the v0.2.0 roadmap.
-3. `iv_kitagawa` and `iv_mw` assume binary `D`. Multivalued treatment is supported in `iv_testjfe` via the Frandsen-Lefgren-Leslie section 4 extension; a multivalued extension of Kitagawa [@sun2023] is a v0.2.0 priority.
-4. Survey weights are a v0.2.0 priority. The `weights` argument is reserved in every test function but not yet implemented.
-5. Fuzzy regression discontinuity has a dedicated test [@arai2022] that is not yet in \CRANpkg{ivcheck}.
-6. `iv_testjfe` implements the asymptotic chi-squared linearity test that corresponds to the @frandsen2023 statistic under a linear outcome-propensity specification. The full flexible-series test with the bounded-slope moment-inequality restriction is planned for v0.2.0. Users needing the published test with the flexible basis should run Frandsen's Stata `testjfe` module in the interim.
-7. Rejection of any of the three tests is evidence of violation but does not localise the failed assumption. Non-rejection is evidence of no detectable violation at level `alpha`, not proof of validity. Report non-rejection as such.
+2. Version 0.1.0 supports discrete instruments only. Continuous `Z` must be discretised into bins (quartiles or quintiles) before passing to `iv_kitagawa` or `iv_mw`, at modest cost in power. A nonparametric continuous-`Z` extension is on the v0.2.0 roadmap.
+3. Fuzzy regression discontinuity has a dedicated test [@arai2022] that is not yet in \CRANpkg{ivcheck}. Its different infrastructure (running variable, cutoff, local-polynomial bandwidth, bias correction) does not fit the current spine of S3 dispatch on fitted IV models, so a dedicated `iv_frd()` function is deferred to v0.2.0.
+4. `iv_testjfe` implements the asymptotic chi-squared linearity test that corresponds to the @frandsen2023 statistic under a linear outcome-propensity specification. The full flexible-series test with the bounded-slope moment-inequality restriction is planned for v0.2.0. Users needing the published test with the flexible basis should run Frandsen's Stata `testjfe` module in the interim.
+5. Rejection of any of the three tests is evidence of violation but does not localise the failed assumption. Non-rejection is evidence of no detectable violation at level `alpha`, not proof of validity. Report non-rejection as such.
 
 ## Conclusion
 
