@@ -95,8 +95,8 @@
 #' Kitagawa, T. (2015). A Test for Instrument Validity. *Econometrica*,
 #' 83(5), 2043-2063. \doi{10.3982/ECTA11974}
 #'
-#' Sun, Z. (2023). Instrument Validity for Heterogeneous Causal Effects.
-#' *Journal of Econometrics*. \doi{10.1016/j.jeconom.2023.105628}
+#' Sun, Z. (2023). Instrument validity for heterogeneous causal effects.
+#' *Journal of Econometrics*, 237(2), 105523. \doi{10.1016/j.jeconom.2023.105523}
 #'
 #' Imbens, G. W. and Angrist, J. D. (1994). Identification and Estimation
 #' of Local Average Treatment Effects. *Econometrica*, 62(2), 467-475.

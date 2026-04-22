@@ -228,7 +228,7 @@ citation("ivcheck")
 | Function | Reference | DOI |
 |---|---|---|
 | `iv_kitagawa()` | Kitagawa, T. (2015). A Test for Instrument Validity. *Econometrica* 83(5): 2043-2063. | [10.3982/ECTA11974](https://doi.org/10.3982/ECTA11974) |
-| `iv_kitagawa()` (multivalued D) | Sun, Z. (2023). Instrument Validity for Heterogeneous Causal Effects. *Journal of Econometrics*. | [10.1016/j.jeconom.2023.105628](https://doi.org/10.1016/j.jeconom.2023.105628) |
+| `iv_kitagawa()` (multivalued D) | Sun, Z. (2023). Instrument validity for heterogeneous causal effects. *Journal of Econometrics* 237(2): 105523. | [10.1016/j.jeconom.2023.105523](https://doi.org/10.1016/j.jeconom.2023.105523) |
 | `iv_mw()` | Mourifie, I. and Wan, Y. (2017). Testing Local Average Treatment Effect Assumptions. *Review of Economics and Statistics* 99(2): 305-313. | [10.1162/REST_a_00622](https://doi.org/10.1162/REST_a_00622) |
 | `iv_testjfe()` | Frandsen, B. R., Lefgren, L. J., Leslie, E. C. (2023). Judging Judge Fixed Effects. *American Economic Review* 113(1): 253-277. | [10.1257/aer.20201860](https://doi.org/10.1257/aer.20201860) |
 
