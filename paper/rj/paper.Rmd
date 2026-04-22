@@ -12,11 +12,14 @@ abstract: >
   models, plus a one-shot wrapper that runs every applicable test on a
   fitted model in a single call. The implementation uses the variance-
   weighted Kolmogorov-Smirnov form of Kitagawa, the full Chernozhukov-
-  Lee-Rosen intersection-bounds inference with adaptive moment
-  selection for Mourifie-Wan, and the asymptotic chi-squared form of
-  Frandsen-Lefgren-Leslie with multivalued-treatment support. Monte
-  Carlo validation confirms that the empirical null distributions
-  match the published asymptotic reference distributions.
+  Lee-Rosen intersection-bounds inference with Andrews-Soares adaptive
+  moment selection for Mourifie-Wan, and a chi-squared linearity
+  specialisation of the Frandsen-Lefgren-Leslie overidentification
+  statistic (with a natural extension to multivalued treatment);
+  the bounded-slope inequality component of the full Frandsen-
+  Lefgren-Leslie test is deferred to a future release. Monte Carlo
+  validation confirms that the empirical null distributions match
+  the asymptotic reference distributions.
 preamble: |
   \usepackage{longtable}
 bibliography: RJreferences.bib
@@ -30,9 +33,9 @@ output:
 
 The \CRANpkg{ivcheck} package provides falsification tests of the identifying assumptions behind instrumental variable (IV) estimation of the local average treatment effect (LATE). It implements three tests from the econometric literature [@kitagawa2015; @mourifie2017; @frandsen2023], each with S3 methods for fitted \CRANpkg{fixest} and \CRANpkg{ivreg} model objects, plus a wrapper that runs every applicable test on a single fitted model.
 
-Applied IV practice has a tooling gap. The identifying assumptions of the Imbens and Angrist [-@imbens1994] LATE framework, the local exclusion restriction and monotonicity, are routinely defended by hand-wave rather than tested, despite each having testable implications derived in the methodological literature since 2015. The reason is not conviction but distribution: Kitagawa's [-@kitagawa2015] test was released with supplementary Matlab code on the author's website; Mourifie and Wan's [-@mourifie2017] reformulation relies on the Chernozhukov-Lee-Rosen [-@chernozhukov2013] `clrtest` Stata module; Frandsen, Lefgren, and Leslie [-@frandsen2023] ship a Stata SSC module `testjfe`. None of the three has existed as a maintained R package until now. The adjacent \CRANpkg{ivDiag} [@lal2024] covers weak-instrument diagnostics (effective F, Anderson-Rubin, valid-t, local-to-zero) but does not implement LATE-validity tests; the R ecosystem has lacked a counterpart to that package for the falsification-test family.
+Applied IV practice has a tooling gap. The identifying assumptions of the Imbens and Angrist [-@imbens1994] LATE framework, the local exclusion restriction and monotonicity, are routinely defended by hand-wave rather than tested, despite each having testable implications derived in the methodological literature since 2015. The reason is not conviction but distribution: Kitagawa's [-@kitagawa2015] test was released with supplementary Matlab code on the author's website; Mourifie and Wan's [-@mourifie2017] reformulation relies on the Chernozhukov-Lee-Rosen [-@chernozhukov2013] `clrtest` Stata module; Frandsen, Lefgren, and Leslie [-@frandsen2023] ship a Stata SSC module `testjfe`. We are not aware of an R package that implements any of the three; \CRANpkg{ivcheck} is, to our knowledge, the first. The adjacent \CRANpkg{ivDiag} [@lal2024] covers weak-instrument diagnostics (effective F, Anderson-Rubin, valid-t, local-to-zero) but does not implement LATE-validity tests; the R ecosystem has lacked a counterpart to that package for the falsification-test family.
 
-\CRANpkg{ivcheck} closes that gap. The package has three functional commitments. First, each test is a named R function (`iv_kitagawa`, `iv_mw`, `iv_testjfe`) that accepts either raw `(y, d, z)` vectors or a fitted IV model through S3 dispatch. Second, the implementations are faithful to the published forms: Kitagawa's variance-weighted Kolmogorov-Smirnov statistic from section 4 of the paper, the full Chernozhukov-Lee-Rosen intersection-bounds inference with Andrews-Soares [-@andrews2010] adaptive moment selection for the conditional Mourifie-Wan test, and the asymptotic chi-squared form of Frandsen-Lefgren-Leslie extended to multivalued treatment per section 4 of that paper. Third, a one-shot `iv_check` wrapper detects which tests are applicable from the structure of a fitted IV model and runs them, producing a tidy summary ready for inclusion in a paper's appendix.
+\CRANpkg{ivcheck} closes that gap. The package has three functional commitments. First, each test is a named R function (`iv_kitagawa`, `iv_mw`, `iv_testjfe`) that accepts either raw `(y, d, z)` vectors or a fitted IV model through S3 dispatch. Second, the implementations are faithful to the published forms: Kitagawa's variance-weighted Kolmogorov-Smirnov statistic from section 4 of that paper, the full Chernozhukov-Lee-Rosen intersection-bounds inference with Andrews-Soares [-@andrews2010] adaptive moment selection for the conditional Mourifie-Wan test, and a chi-squared linearity specialisation of the Frandsen-Lefgren-Leslie overidentification statistic (a Sargan-Hansen special case of their regression test) with a natural extension to multivalued treatment. Third, a one-shot `iv_check` wrapper detects which tests are applicable from the structure of a fitted IV model and runs them, producing a tidy summary ready for inclusion in a paper's appendix.
 
 ## Background
 
@@ -72,17 +75,17 @@ All three tests share a multiplier-bootstrap core. Rademacher weights are the de
 
 ### Statistic and bootstrap
 
-`iv_kitagawa` implements the variance-weighted Kolmogorov-Smirnov statistic of @kitagawa2015 equation 2.1. For each pair `(z_L, z_H)` of instrument levels pre-ordered by first-stage `E_hat[D | Z]`, and for each `d in {0, 1}`, the testable null implies that the interval-probability difference `P([y, y'], d | Z = z_L) - P([y, y'], d | Z = z_H)` is non-positive for every `y <= y'` (with the sign reversed for `d = 0`). Kitagawa's studentised statistic is
+`iv_kitagawa` implements the variance-weighted Kolmogorov-Smirnov statistic of @kitagawa2015 equation 2.1. For each pair `(z_L, z_H)` of instrument levels pre-ordered ascending by first-stage `E_hat[D | Z]`, and for each `d in {0, 1}`, the testable null implies that the interval-probability difference `P([y, y'], d | Z = z_L) - P([y, y'], d | Z = z_H)` is non-positive for every `y <= y'` (with the sign reversed for `d = 0`). Kitagawa's studentised statistic is
 
 \begin{equation}
-T_n \;=\; \sqrt{\tfrac{n_L n_H}{n}}
+T_n \;=\; \sqrt{\tfrac{n_L \, n_H}{n_L + n_H}}
 \max_{(z_L, z_H, d)} \;
 \sup_{y \le y'}
 \frac{\bigl[\Delta F_{\text{hat}}(y, y'; d, z_L, z_H)\bigr]^{+}}{\hat{\sigma}(y, y'; d, z_L, z_H) \vee \xi},
 \label{eq:kitagawa}
 \end{equation}
 
-where `Delta F_hat` is the signed interval-probability difference, `sigma_hat` is the plug-in binomial-mixture standard error with mixture weights matching Kitagawa's equation 2.1, and `xi` is a small positive trimming constant that floors the denominator on intervals with vanishing estimated variance. Pairs are pre-ordered so the inequalities are one-sided and the statistic is strictly non-negative. Critical values come from a multiplier bootstrap: for each replication, resampled subsamples from the pooled empirical distribution produce a bootstrap analogue of `Delta F_hat` normalised by the same data-derived standard error. The bootstrap p-value is the fraction of replications whose statistic exceeds `T_n`.
+where `n_L` and `n_H` are the sample sizes in the two instrument cells (so the pair-scale is the harmonic-mean form `sqrt(n_L n_H / (n_L + n_H))`), `Delta F_hat` is the signed interval-probability difference, `sigma_hat` is the plug-in binomial-mixture standard error with mixture weights matching Kitagawa's equation 2.1, and `xi` is a small positive trimming constant that floors the denominator on intervals with vanishing estimated variance. Pairs are pre-ordered so the inequalities are one-sided and the statistic is strictly non-negative. Critical values come from a multiplier bootstrap in the style of Kitagawa section 4: Rademacher weights `W_i in {-1, +1}` are applied to the centred indicator process `1{Y_i <= y, D_i = d} - \hat F(y, d | Z_i)` within each Z cell, the bootstrap analogue of `Delta F_hat` is recomputed, and it is studentised with the **data-derived** plug-in standard error frozen at the observed-sample value (not re-estimated per replication). No observations are resampled. The bootstrap p-value is the fraction of replications whose statistic exceeds `T_n`.
 
 ### Implementation
 
@@ -95,7 +98,7 @@ The bundled `card1995` dataset is a cleaned extract of 3,003 observations from t
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=0.85\linewidth]{figures/fig-card-bootstrap.pdf}
-\caption{\textbf{Kitagawa (2015) bootstrap distribution for the Card (1995) proximity-to-college IV, N = 2991.} Observed test statistic (solid line) and the $95^{\text{th}}$ percentile of the multiplier bootstrap (dashed). Treatment is a binary completed-college indicator (\texttt{educ >= 16}); the instrument is \texttt{near\_college}. The observed statistic lies in the upper tail of the bootstrap distribution; the interval-sup test rejects the binary-discretised IV's testable implications at the 5\% level. This should not be interpreted as a rejection of Card's original IV, which targets continuous years of schooling. The binary threshold at \texttt{educ >= 16} creates mixed complier subpopulations that make the testable implications bite.}
+\caption{\textbf{Kitagawa (2015) bootstrap distribution for the Card (1995) proximity-to-college IV, N = 3003.} Observed test statistic (solid line) and the $95^{\text{th}}$ percentile of the multiplier bootstrap (dashed). Treatment is a binary completed-college indicator (\texttt{educ >= 16}); the instrument is \texttt{near\_college}. The observed statistic lies in the upper tail of the bootstrap distribution; the interval-sup test rejects the binary-discretised IV's testable implications at the 5\% level. This should not be interpreted as a rejection of Card's original IV, which targets continuous years of schooling. The binary threshold at \texttt{educ >= 16} creates mixed complier subpopulations that make the testable implications bite.}
 \label{fig:card}
 \end{figure}
 
@@ -130,7 +133,7 @@ The `method = "bootstrap"` option replaces the chi-squared reference with a mult
 
 ### Multivalued treatment
 
-Section 4 of Frandsen, Lefgren, and Leslie [-@frandsen2023] extends the test to multivalued `D`. For `D` with `M + 1` distinct values, the scalar propensity `p_j` becomes an `M`-vector, the fit becomes a multiple WLS regression of `mu_j` on `(P(D = 1 | J), ..., P(D = M | J))`, and the reference distribution is `chi^2_{K - M - 1}`. `iv_testjfe` supports both binary and multivalued treatments; the extension requires no additional user input.
+Frandsen, Lefgren, and Leslie [-@frandsen2023] state their test for binary `D`. We implement a direct generalisation to discrete `D` with `M + 1` distinct values: the scalar propensity `p_j` becomes the `M`-vector `(P(D = 1 | J), ..., P(D = M | J))`, the fit is the multiple WLS regression of `mu_j` on that vector, and the reference distribution is `chi^2_{K - M - 1}`. The same necessary-condition logic applies (each pair of judges identifies a common LATE vector under the joint null), and the degrees-of-freedom adjustment follows from the number of free parameters in the fit. `iv_testjfe` supports both binary and multivalued treatments; the extension requires no additional user input. We are not aware of a published proof covering the multivalued case for this particular statistic; users treating it as a published result should rely on the binary form.
 
 The Kitagawa (2015) and Mourifie-Wan (2017) tests have an analogous extension to multivalued treatment via Sun [-@sun2023], who generalises the stochastic-dominance inequalities to cumulative-tail events `P(Y <= y, D <= d | Z)` and `P(Y <= y, D >= d | Z)`. `iv_kitagawa` implements this extension transparently: when the treatment vector has more than two distinct values, the test label switches from "Kitagawa (2015)" to "Sun (2023)" and the statistic aggregates violations across `2M` inequality families instead of `2`. Sun's asymptotic validity and bootstrap procedure carry through from the binary case.
 
@@ -160,12 +163,12 @@ The wrapper detects that `college` is binary and `near_college` is a binary inst
 
 ### Null distribution of `iv_testjfe`
 
-Figure \ref{fig:null} shows the empirical distribution of `T_n` from equation (\ref{eq:fll}) over 200 Monte Carlo replications under a valid-IV null, overlaid with the asymptotic chi-squared density with `K - 2 = 18` degrees of freedom. Empirical mean is 17.7 against target 18.0; empirical variance is 28.8 against target 36.0; the $95^{\text{th}}$ percentile is 27.5 against the chi-squared critical value of 28.9. Empirical size at nominal 5\% is 1.5\% with the asymptotic method and 2.5\% with `method = "bootstrap"`, both below nominal. The source of the conservatism is that per-judge propensities `\hat p_j` are estimated from data: treating them as fixed regressors (as the asymptotic approximation implicitly does) ignores the binomial variance that `\hat p_j` itself carries at `n_j \approx 150` per judge, compressing the variance of `T_n` below the chi-squared reference. The approximation sharpens as `n_j` grows. For publication-grade p-values at modest `n_j`, we recommend `method = "bootstrap"`, which matches nominal more closely; the asymptotic chi-squared remains accurate in the upper tail for diagnostic purposes.
+Figure \ref{fig:null} shows the empirical distribution of `T_n` from equation (\ref{eq:fll}) over 1000 Monte Carlo replications under a valid-IV null, overlaid with the asymptotic chi-squared density with `K - 2 = 18` degrees of freedom. Empirical moments are 17.67 (target 18.0) and 33.44 (target 36.0); the $95^{\text{th}}$ percentile is 28.28 against the chi-squared critical value of 28.869. Empirical size at nominal 5\% is 3.9\% with the asymptotic method and 4.3\% with `method = "bootstrap"`, against a Monte Carlo standard error of 0.69 percentage points; both methods sit within two MC standard errors of nominal and are mildly conservative at this sample size. Two mechanisms contribute to the conservatism. First, the within-judge residual-variance estimator in equation (\ref{eq:fll}) absorbs `K` degrees of freedom, which at finite `K` over-estimates the structural variance assumed by the asymptotic theory. Second, the per-judge propensities `\hat p_j` enter the fit as estimated regressors, and their sampling covariance with `\hat \mu_j` is not accounted for in the chi-squared reference, which treats `\hat p_j` as fixed. Both effects shrink as `n_j` grows; the bootstrap approximates the true sampling distribution directly and is recommended for publication-grade p-values at modest `n_j`. The asymptotic chi-squared remains accurate in the upper tail for diagnostic purposes.
 
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=0.85\linewidth]{figures/fig-testjfe-null.pdf}
-\caption{\textbf{Monte Carlo null distribution of the Frandsen-Lefgren-Leslie test statistic, K = 20 judges and N = 3000 observations per replication.} Histogram shows the empirical density from 200 replications under the null (Y independent of J given D). Red curve is the asymptotic chi-squared distribution with K - 2 = 18 degrees of freedom implied by equation (\ref{eq:fll}). Agreement in mean and upper-tail quantile is close; the structural-residual variance estimator produces a slightly tighter empirical variance than the asymptotic theory predicts, giving a mildly conservative test.}
+\caption{\textbf{Monte Carlo null distribution of the Frandsen-Lefgren-Leslie test statistic, K = 20 judges and N = 3000 observations per replication.} Histogram shows the empirical density from 1000 replications under the null (Y independent of J given D). Red curve is the asymptotic chi-squared distribution with K - 2 = 18 degrees of freedom implied by equation (\ref{eq:fll}). Agreement in mean and upper-tail quantile is close; the structural-residual variance estimator and the estimated-regressor adjustment for $\hat{p}_j$ (not reflected in the chi-squared reference) produce a mildly conservative test.}
 \label{fig:null}
 \end{figure}
 
@@ -197,13 +200,20 @@ to match the paper exactly.
 
 ### Power under exclusion violation
 
-Figure \ref{fig:power} shows the empirical rejection rate of `iv_kitagawa` under a D-specific direct effect of `Z` on `Y`, the class of exclusion violation the Kolmogorov-Smirnov test is designed to detect. At `delta = 0` (null) the empirical size is roughly nominal; by `delta = 1.5` in units of `sigma`, power approaches one.
+Figure \ref{fig:power} shows the empirical rejection rate of `iv_kitagawa` under a D-specific direct effect of `Z` on `Y`, the class of exclusion violation the Kolmogorov-Smirnov test is designed to detect. At `delta = 0` (null) the empirical size is roughly nominal; by `delta = 1.5` in units of `sigma`, power approaches one. Figure \ref{fig:power_jfe} shows the analogous curve for `iv_testjfe` under a sinusoidal direct judge effect, the leading violation mode for the judge-IV design; power reaches one by amplitude `eta = 1.5 sigma`.
 
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=0.85\linewidth]{figures/fig-power-curve.pdf}
-\caption{\textbf{Empirical power of \texttt{iv\_kitagawa} under a D-specific direct-effect exclusion violation, N = 500 per replication.} Horizontal dashed line shows the nominal 5\% level. The simulator generates data with $Y = D + \delta \sigma \cdot D \cdot (Z - z_L) + \varepsilon$, directly violating the testable inequality for the $d = 1$ cells. Power approaches one by $\delta = 1.5\sigma$ with 80 Monte Carlo replications per grid point.}
+\caption{\textbf{Empirical power of \texttt{iv\_kitagawa} under a D-specific direct-effect exclusion violation, N = 500 per replication.} Horizontal dashed line shows the nominal 5\% level. The simulator generates data with $Y = D + \delta \sigma \cdot D \cdot (Z - z_L) + \varepsilon$, directly violating the testable inequality for the $d = 1$ cells. Power approaches one by $\delta = 1.5\sigma$ with 300 Monte Carlo replications per grid point.}
 \label{fig:power}
+\end{figure}
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=0.85\linewidth]{figures/fig-power-testjfe.pdf}
+\caption{\textbf{Empirical power of \texttt{iv\_testjfe} under a sinusoidal judge-effect exclusion violation, K = 20 judges and N = 3000.} Horizontal dashed line shows the nominal 5\% level. The simulator generates data with $Y = D + \eta \sigma \sin(0.5 J) + \varepsilon$, a direct effect of judge identity on $Y$ holding $D$ fixed. Power rises monotonically in the violation amplitude $\eta$ and approaches one by $\eta = 1.5\sigma$, with 200 Monte Carlo replications per grid point; the asymptotic-chi-squared p-value is used throughout.}
+\label{fig:power_jfe}
 \end{figure}
 
 ### Judge-IV diagnostic figures

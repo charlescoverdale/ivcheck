@@ -109,6 +109,8 @@ p_boot <- ggplot(df_boot, aes(x = stat)) +
 ggsave(file.path(fig_dir, "fig-card-bootstrap.pdf"),
        p_boot, width = 5.5, height = 3.4, device = cairo_pdf)
 
+nreps_power_kit <- 300
+
 # -----------------------------------------------------------------------------
 # Figure 2: Power curve for iv_kitagawa under increasing violation size.
 # -----------------------------------------------------------------------------
@@ -121,9 +123,9 @@ y <- rnorm(n, mean = d)
 power_grid <- seq(0, 2.0, length.out = 7)
 pc <- iv_power(y, d, z,
                method = "kitagawa",
-               n_sims = 80,
+               n_sims = nreps_power_kit,
                delta_grid = power_grid,
-               n_boot = 150,
+               n_boot = 300,
                parallel = FALSE)
 
 p_power <- ggplot(pc, aes(delta, power)) +
@@ -146,15 +148,22 @@ ggsave(file.path(fig_dir, "fig-power-curve.pdf"),
 set.seed(3)
 K <- 20
 n_sim <- 3000
-n_reps <- 300
-stats_null <- numeric(n_reps)
+n_reps <- 1000
+stats_null  <- numeric(n_reps)
+p_asy_null  <- numeric(n_reps)
+p_boot_null <- numeric(n_reps)
 for (s in seq_len(n_reps)) {
   judge <- sample.int(K, n_sim, replace = TRUE)
   p_by_j <- 0.3 + 0.02 * seq_len(K)
   d <- rbinom(n_sim, 1, p_by_j[judge])
   y <- rnorm(n_sim, mean = d)
-  r <- iv_testjfe(y, d, judge, n_boot = 5, parallel = FALSE)
-  stats_null[s] <- r$statistic
+  r_asy  <- iv_testjfe(y, d, judge, method = "asymptotic",
+                       n_boot = 1, parallel = FALSE)
+  stats_null[s] <- r_asy$statistic
+  p_asy_null[s] <- r_asy$p_value_asymptotic
+  r_boot <- iv_testjfe(y, d, judge, method = "bootstrap",
+                       n_boot = 200, parallel = FALSE)
+  p_boot_null[s] <- r_boot$p_value_bootstrap
 }
 
 df_null <- data.frame(stat = stats_null)
@@ -172,6 +181,18 @@ p_null <- ggplot(df_null, aes(x = stat)) +
 
 ggsave(file.path(fig_dir, "fig-testjfe-null.pdf"),
        p_null, width = 5.5, height = 3.4, device = cairo_pdf)
+
+# Null-distribution summary statistics for inline replacement in the paper.
+null_stats <- list(
+  nreps        = n_reps,
+  mean_emp     = mean(stats_null),
+  var_emp      = var(stats_null),
+  q95_emp      = unname(quantile(stats_null, 0.95)),
+  size_asy     = mean(p_asy_null  < 0.05, na.rm = TRUE),
+  size_boot    = mean(p_boot_null < 0.05, na.rm = TRUE),
+  mc_se_size5  = sqrt(0.05 * 0.95 / n_reps) * 100
+)
+saveRDS(null_stats, file.path("paper", "null_stats.rds"))
 
 # -----------------------------------------------------------------------------
 # Figure 4: mu_j vs p_j scatter for valid and violated judge IV designs.
@@ -241,5 +262,52 @@ if (!is.null(pw)) {
   ggsave(file.path(fig_dir, "fig-pairwise-late.pdf"),
          p_pw, width = 5.0, height = 3.6, device = cairo_pdf)
 }
+
+# -----------------------------------------------------------------------------
+# Figure 6: Power curve for iv_testjfe under sinusoidal judge-effect exclusion
+# violation. Y = D + eta * sigma * sin(0.5 * J) + eps.
+# -----------------------------------------------------------------------------
+set.seed(6)
+K <- 20
+n_sim <- 3000
+nreps_power_jfe <- 200
+eta_grid <- c(0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5)
+power_jfe <- numeric(length(eta_grid))
+for (i in seq_along(eta_grid)) {
+  rejections <- 0
+  for (s in seq_len(nreps_power_jfe)) {
+    judge <- sample.int(K, n_sim, replace = TRUE)
+    p_by_j <- 0.3 + 0.02 * seq_len(K)
+    d <- rbinom(n_sim, 1, p_by_j[judge])
+    y <- rnorm(n_sim, mean = d + eta_grid[i] * sin(0.5 * judge))
+    r <- iv_testjfe(y, d, judge, method = "asymptotic",
+                    n_boot = 1, parallel = FALSE)
+    if (is.finite(r$p_value) && r$p_value < 0.05) rejections <- rejections + 1L
+  }
+  power_jfe[i] <- rejections / nreps_power_jfe
+}
+
+df_power_jfe <- data.frame(eta = eta_grid, power = power_jfe)
+
+p_power_jfe <- ggplot(df_power_jfe, aes(eta, power)) +
+  geom_hline(yintercept = 0.05, linetype = "dashed",
+             colour = "grey55", linewidth = 0.35) +
+  geom_line(colour = ok_blue, linewidth = 0.8) +
+  geom_point(colour = ok_blue, size = 2.2) +
+  scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.2),
+                     labels = scales::label_number(accuracy = 0.01)) +
+  labs(x = expression(paste("Violation amplitude (", eta, ", units of ", sigma, ")")),
+       y = "Rejection probability") +
+  theme_wp()
+
+ggsave(file.path(fig_dir, "fig-power-testjfe.pdf"),
+       p_power_jfe, width = 5.5, height = 3.4, device = cairo_pdf)
+
+# Save the MC rep counts for inline substitution in the paper.
+saveRDS(
+  list(nreps_power_kit = nreps_power_kit,
+       nreps_power_jfe = nreps_power_jfe),
+  file.path("paper", "power_stats.rds")
+)
 
 cat("\n--- figures built ---\n")
