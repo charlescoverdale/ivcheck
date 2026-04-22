@@ -34,7 +34,7 @@
 #'   `power` (estimated rejection probability at level `alpha`).
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' # Headline power curve for a small-N design
 #' set.seed(1)
 #' n <- 300

@@ -1,3 +1,14 @@
+# ivcheck 0.1.1
+
+CRAN resubmission addressing reviewer feedback (Benjamin Altmann, 2026-04-21):
+
+* `iv_power()` example: replaced `\dontrun{}` with `\donttest{}` so the
+  example is executed by default on CRAN checks (it exceeds the 5-second
+  limit for inline examples due to 50 simulations x 100 bootstrap
+  iterations).
+* `judge-designs` vignette: save and restore `par()` around the two-panel
+  diagnostic plot so user `par` settings are not permanently altered.
+
 # ivcheck 0.1.0
 
 First CRAN submission. Three falsification tests for the identifying

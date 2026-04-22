@@ -98,6 +98,7 @@ p_j <- sapply(judges, function(j) mean(d[judge == j]))
 mu_j_viol <- sapply(judges, function(j) mean(y_viol[judge == j]))
 mu_j_valid <- sapply(judges, function(j) mean(y[judge == j]))
 
+oldpar <- par(no.readonly = TRUE)
 par(mfrow = c(1, 2))
 plot(p_j, mu_j_valid, pch = 19, cex = sqrt(n_j) / 5,
      main = "Valid design", xlab = "p_j", ylab = "mu_j")
@@ -106,6 +107,7 @@ abline(lm(mu_j_valid ~ p_j, weights = n_j), col = "red")
 plot(p_j, mu_j_viol, pch = 19, cex = sqrt(n_j) / 5,
      main = "Exclusion violation", xlab = "p_j", ylab = "mu_j")
 abline(lm(mu_j_viol ~ p_j, weights = n_j), col = "red")
+par(oldpar)
 ```
 
 Under a valid design, the points lie on the line. Under a violation, they wander off it in a pattern related to the direct judge effect.

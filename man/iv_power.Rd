@@ -62,7 +62,7 @@ The simulator preserves the observed sample size, first-stage
 propensities, and outcome scale.
 }
 \examples{
-\dontrun{
+\donttest{
 # Headline power curve for a small-N design
 set.seed(1)
 n <- 300
