@@ -35,7 +35,7 @@ The \CRANpkg{ivcheck} package provides falsification tests of the identifying as
 
 Applied IV practice has a tooling gap. The identifying assumptions of the Imbens and Angrist [-@imbens1994] LATE framework, the local exclusion restriction and monotonicity, are routinely defended by hand-wave rather than tested, despite each having testable implications derived in the methodological literature since 2015. The reason is not conviction but distribution: Kitagawa's [-@kitagawa2015] test was released with supplementary Matlab code on the author's website; Mourifie and Wan's [-@mourifie2017] reformulation relies on the Chernozhukov-Lee-Rosen [-@chernozhukov2013] `clrtest` Stata module; Frandsen, Lefgren, and Leslie [-@frandsen2023] ship a Stata SSC module `testjfe`. We are not aware of an R package that implements any of the three; \CRANpkg{ivcheck} is, to our knowledge, the first. The adjacent \CRANpkg{ivDiag} [@lal2024] covers weak-instrument diagnostics (effective F, Anderson-Rubin, valid-t, local-to-zero) but does not implement LATE-validity tests; the R ecosystem has lacked a counterpart to that package for the falsification-test family.
 
-\CRANpkg{ivcheck} closes that gap. The package has three functional commitments. First, each test is a named R function (`iv_kitagawa`, `iv_mw`, `iv_testjfe`) that accepts either raw `(y, d, z)` vectors or a fitted IV model through S3 dispatch. Second, the implementations are faithful to the published forms: Kitagawa's variance-weighted Kolmogorov-Smirnov statistic from section 4 of that paper, the full Chernozhukov-Lee-Rosen intersection-bounds inference with Andrews-Soares [-@andrews2010] adaptive moment selection for the conditional Mourifie-Wan test, and a chi-squared linearity specialisation of the Frandsen-Lefgren-Leslie overidentification statistic (a Sargan-Hansen special case of their regression test) with a natural extension to multivalued treatment. Third, a one-shot `iv_check` wrapper detects which tests are applicable from the structure of a fitted IV model and runs them, producing a tidy summary ready for inclusion in a paper's appendix.
+\CRANpkg{ivcheck} closes that gap. The package has three functional commitments. First, each test is a named R function (`iv_kitagawa`, `iv_mw`, `iv_testjfe`) that accepts either raw `(y, d, z)` vectors or a fitted IV model through S3 dispatch. Second, the implementations follow the published forms: Kitagawa's variance-weighted Kolmogorov-Smirnov statistic from Section 2.1 of that paper (equation 2.1), the Chernozhukov-Lee-Rosen intersection-bounds inference with Andrews-Soares [-@andrews2010] adaptive moment selection for the conditional Mourifie-Wan test, and a chi-squared linearity specialisation of the Frandsen-Lefgren-Leslie overidentification statistic (a Sargan-Hansen special case of their regression test) with a natural extension to multivalued treatment. Third, a one-shot `iv_check` wrapper detects which tests are applicable from the structure of a fitted IV model and runs them, producing a tidy summary ready for inclusion in a paper's appendix.
 
 ## Background
 
@@ -57,7 +57,7 @@ All three tests share a structural feature: they test necessary conditions, not 
 
 ### The `iv_test` class
 
-Every test returns an object of class `iv_test`, a list with uniform slots: the test statistic, the bootstrap or asymptotic p-value, the significance level, the bootstrap statistics vector, a `binding` list identifying the `(z, z', d, y)` configuration of the observed statistic, and the sample size. Test-specific slots carry additional information: `weighting` for `iv_kitagawa`, `conditional` and `kappa_n` for `iv_mw`, and `pairwise_late` and `worst_pair` for `iv_testjfe`. A `print.iv_test` method emits a three-line summary; `plot.iv_test` shows the bootstrap distribution with the observed statistic marked.
+Every test returns an object of class `iv_test`, a list with uniform slots: the test statistic, the bootstrap or asymptotic p-value, the significance level, the bootstrap statistics vector, a `binding` list identifying the `(z, z', d, y)` configuration of the observed statistic, and the sample size. Test-specific slots carry additional information: `weighting` for `iv_kitagawa`; `conditional` (a flag for whether a covariate was supplied) and `kappa_n` for `iv_mw`; `pairwise_late` and `worst_pair` for `iv_testjfe`. A `print.iv_test` method emits a banner with the test name followed by three content lines (sample size, statistic and p-value, verdict); `plot.iv_test` shows the bootstrap distribution with the observed statistic marked.
 
 ### S3 dispatch on fitted IV models
 
@@ -85,11 +85,11 @@ T_n \;=\; \sqrt{\tfrac{n_L \, n_H}{n_L + n_H}}
 \label{eq:kitagawa}
 \end{equation}
 
-where `n_L` and `n_H` are the sample sizes in the two instrument cells (so the pair-scale is the harmonic-mean form `sqrt(n_L n_H / (n_L + n_H))`), `Delta F_hat` is the signed interval-probability difference, `sigma_hat` is the plug-in binomial-mixture standard error with mixture weights matching Kitagawa's equation 2.1, and `xi` is a small positive trimming constant that floors the denominator on intervals with vanishing estimated variance. Pairs are pre-ordered so the inequalities are one-sided and the statistic is strictly non-negative. Critical values come from a multiplier bootstrap in the style of Kitagawa section 4: Rademacher weights `W_i in {-1, +1}` are applied to the centred indicator process `1{Y_i <= y, D_i = d} - \hat F(y, d | Z_i)` within each Z cell, the bootstrap analogue of `Delta F_hat` is recomputed, and it is studentised with the **data-derived** plug-in standard error frozen at the observed-sample value (not re-estimated per replication). No observations are resampled. The bootstrap p-value is the fraction of replications whose statistic exceeds `T_n`.
+where `n_L` and `n_H` are the sample sizes in the two instrument cells (so the pair-scale is the harmonic-mean form `sqrt(n_L n_H / (n_L + n_H))`), `Delta F_hat` is the signed interval-probability difference, `sigma_hat` is the plug-in binomial-mixture standard error with mixture weights matching Kitagawa's equation 2.1, and `xi` is a small positive trimming constant that floors the denominator on intervals with vanishing estimated variance. Pairs are pre-ordered so the inequalities are one-sided and the statistic is strictly non-negative. Critical values come from a multiplier bootstrap: Rademacher weights `W_i in {-1, +1}` are applied to the centred indicator process `1{Y_i <= y, D_i = d} - \hat F(y, d | Z_i)` within each Z cell, the bootstrap analogue of `Delta F_hat` is recomputed, and it is studentised with the data-derived plug-in standard error frozen at the observed-sample value. Kitagawa's Algorithm 2.1 (Section 2.2) uses a pair-resampling bootstrap with replacement from the pooled empirical `H_N = \hat\lambda P_m + (1-\hat\lambda) Q_n`; the multiplier variant implemented here is asymptotically equivalent for this class of studentised functionals and is adopted for computational simplicity. The bootstrap p-value is the fraction of replications whose statistic exceeds `T_n`.
 
 ### Implementation
 
-The supremum over `(y, y')` is computed on a quantile grid of observed outcomes (default 50 points), which is equivalent to evaluation at every sample-point pair up to Monte Carlo error under Kitagawa's Theorem 2.1. The `weighting` argument selects the variance-weighted form of equation 2.1 (default) or the unweighted form of equation 2.2 (`weighting = "unweighted"`). The two are asymptotically equivalent under the null boundary; the weighted form has better finite-sample power when instrument cells have unequal sizes.
+The supremum over `(y, y')` is computed on a quantile grid of observed outcomes (default 50 points). The empirical-process sup is attained at sample `Y` values with probability one, so the quantile grid is a dense approximation to the exact sup up to Monte Carlo error. The `weighting` argument selects the variance-weighted form of Kitagawa's equation 2.1 (default) or the unweighted form of equation 2.2 (`weighting = "unweighted"`). The two are asymptotically equivalent under the null boundary; the weighted form has better finite-sample power when instrument cells have unequal sizes.
 
 ### Card (1995) illustration
 
@@ -127,7 +127,7 @@ T_n \;=\; \frac{\sum_{j} n_j \, \bigl(\mu_j - \hat\alpha - \hat\beta \, p_j\bigr
 \label{eq:fll}
 \end{equation}
 
-where `bar u_j` is the within-judge mean of the structural residuals and the reference distribution is `chi^2_{K - 2}`. Using structural residuals rather than within-judge variance of `y` removes the first-stage binomial contribution of `D`, which otherwise inflates `sigma^2` by approximately `1 + p(1 - p)` relative to the correct denominator.
+where `bar u_j` is the within-judge mean of the structural residuals and the reference distribution is `chi^2_{K - 2}`. Using structural residuals rather than within-judge variance of `y` removes the first-stage binomial contribution of `D`: the conditional variance decomposes as `Var(Y | J) = beta^2 p_j (1 - p_j) + sigma^2`, so the direct-y estimator inflates `sigma^2` by a factor of `1 + (beta / sigma)^2 p_j (1 - p_j)` relative to the correct denominator.
 
 The `method = "bootstrap"` option replaces the chi-squared reference with a multiplier bootstrap of the restricted-residual process for small-`K` robustness. This is a simplification of the full @frandsen2023 test, which uses a flexible polynomial or spline specification for the outcome-propensity relationship and the Andrews-Soares [-@andrews2010] moment-inequality procedure for the bounded-slope restriction. The chi-squared linearity test implemented here is the special case of their asymptotic form with `phi(p) = alpha + beta * p` (linear specification) and without the bounded-slope constraint.
 
@@ -179,14 +179,15 @@ Monte Carlo size simulations at nominal 5% across 24 configurations
 `P(D=1|Z_low), P(D=1|Z_high) \in \{(0.5, 0.5), (0.3, 0.7), (0.3, 0.4), (0.1, 0.9)\}`; Z-cell balance
 50/50 or 35/65; 500 Monte Carlo replications per cell) drove the
 choice of the default `se_floor` trimming constant (Kitagawa's
-`\xi`). At the paper's informally-recommended value `\xi = 0.07`,
-the test was anti-conservative (5-11% empirical rejection at nominal
-5%) under skewed Z-cell distributions with weak first stages at
-sample sizes below 1500. Raising the floor to `\xi = 0.15` brings
-empirical size at or below nominal 5\% in 22 of the 24
-configurations; the two cells that exceed nominal are both at
-`n = 300` with skewed Z-cell balance (35/65), landing at 6.2\%
-(balanced first stage `P(D=1|Z) = 0.5`) and 6.0\% (card-like
+`\xi`). Kitagawa [-@kitagawa2015, p.~2051] informally recommends
+`\xi \in [0.05, 0.1]`. At the lower end of that range the test was
+anti-conservative (5-11% empirical rejection at nominal 5\%) under
+skewed Z-cell distributions with weak first stages at sample sizes
+below 1500. Raising the floor to `\xi = 0.15` brings empirical size
+at or below nominal 5\% in 22 of the 24 configurations; the two
+cells that exceed nominal are both at `n = 300` with skewed Z-cell
+balance (35/65), landing at 6.2\% (balanced first stage
+`P(D=1|Z) = 0.5`) and 6.0\% (card-like
 `P(D=1|Z) \in \{0.3, 0.4\}`) respectively. Both are within
 approximately 1.3 Monte Carlo standard errors of nominal
 (`\sqrt{0.05 \times 0.95 / 500} \approx 0.97` percentage points) and
@@ -195,8 +196,8 @@ land at 4.0\% and 1.6\%, at `n = 2000` at 2.6\% and 0.6\%. At the
 practical sample sizes for Card (1995) and similar designs
 (`n \geq 800`) empirical size is at or below nominal throughout.
 The `se_floor` argument is user-tunable; setting `se_floor = 0.1`
-reproduces Kitagawa's published recommendation for users who want
-to match the paper exactly.
+matches the upper end of Kitagawa's recommended range for users who
+want to stay inside it.
 
 ### Power under exclusion violation
 
