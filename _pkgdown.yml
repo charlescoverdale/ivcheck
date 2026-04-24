@@ -1,0 +1,24 @@
+url: https://charlescoverdale.github.io/ivcheck/
+
+template:
+  bootstrap: 5
+
+navbar:
+  structure:
+    left:  [intro, reference, articles, news]
+    right: [search, github]
+
+reference:
+  - title: "Validity Tests"
+    desc: "Kitagawa, Mourifie-Wan, and FLL monotonicity tests"
+    contents:
+      - iv_kitagawa
+      - iv_mw
+      - iv_testjfe
+
+  - title: "Strength and Summary"
+    desc: "Power analysis and combined report"
+    contents:
+      - iv_power
+      - iv_check
+

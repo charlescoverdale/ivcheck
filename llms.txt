@@ -1,0 +1,20 @@
+# ivcheck
+
+> Implements tests for the identifying assumptions of instrumental variable models, the local exclusion restriction and monotonicity conditions required for local average treatment effect identificat... Install with `install.packages("ivcheck")`.
+
+Version: 0.1.1. License: MIT.
+
+## Functions
+
+- [`iv_check()`](https://charlescoverdale.github.io/ivcheck/reference/iv_check.html): Run all applicable IV-validity tests on a fitted model
+- [`iv_kitagawa()`](https://charlescoverdale.github.io/ivcheck/reference/iv_kitagawa.html): Kitagawa (2015) / Sun (2023) test for instrument validity
+- [`iv_mw()`](https://charlescoverdale.github.io/ivcheck/reference/iv_mw.html): Mourifie-Wan (2017) test for instrument validity
+- [`iv_power()`](https://charlescoverdale.github.io/ivcheck/reference/iv_power.html): Monte Carlo power curve for IV-validity tests
+- [`iv_testjfe()`](https://charlescoverdale.github.io/ivcheck/reference/iv_testjfe.html): Frandsen-Lefgren-Leslie (2023) test for instrument validity in
+
+## Documentation
+
+- [Full reference](https://charlescoverdale.github.io/ivcheck/reference/)
+- [GitHub](https://github.com/charlescoverdale/ivcheck)
+- [CRAN](https://CRAN.R-project.org/package=ivcheck)
+
