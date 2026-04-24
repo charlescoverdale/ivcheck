@@ -89,7 +89,7 @@
 </h2>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://lrberge.github.io/fixest/" class="external-link">fixest</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/charlescoverdale/ivcheck" class="external-link">ivcheck</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://charlescoverdale.github.io/ivcheck/">ivcheck</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">m</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://lrberge.github.io/fixest/reference/feols.html" class="external-link">feols</a></span><span class="op">(</span><span class="va">lwage</span> <span class="op">~</span> <span class="va">controls</span> <span class="op">|</span> <span class="va">educ</span> <span class="op">~</span> <span class="va">near_college</span>, data <span class="op">=</span> <span class="va">card1995</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/iv_check.html">iv_check</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span></span>
@@ -107,7 +107,7 @@
 <h3 id="a-single-test-on-raw-vectors">A single test on raw vectors<a class="anchor" aria-label="anchor" href="#a-single-test-on-raw-vectors"></a>
 </h3>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/charlescoverdale/ivcheck" class="external-link">ivcheck</a></span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://charlescoverdale.github.io/ivcheck/">ivcheck</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
 <span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fl">500</span></span>
@@ -170,7 +170,7 @@
 <h2 id="example-end-to-end-with-card-1995">Example: end-to-end with Card (1995)<a class="anchor" aria-label="anchor" href="#example-end-to-end-with-card-1995"></a>
 </h2>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/charlescoverdale/ivcheck" class="external-link">ivcheck</a></span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://charlescoverdale.github.io/ivcheck/">ivcheck</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://lrberge.github.io/fixest/" class="external-link">fixest</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">card1995</span><span class="op">)</span>   <span class="co"># bundled</span></span>
