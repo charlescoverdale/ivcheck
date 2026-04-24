@@ -74,7 +74,7 @@ if (requireNamespace("fixest", quietly = TRUE)) {
 #> 
 #> ── IV validity diagnostic ──────────────────────────────────────────────────────
 #> Kitagawa (2015): stat = "0.845", p = "1", pass
-#> Mourifie-Wan (2017): stat = "42.4", p = "0.4", pass
+#> Mourifie-Wan (2017): stat = "42.4", p = "0.395", pass
 #> Overall: cannot reject IV validity at 0.05.
 # }
 ```
