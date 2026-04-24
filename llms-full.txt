@@ -1,0 +1,372 @@
+# ivcheck — full API reference
+
+> Implements tests for the identifying assumptions of instrumental variable models, the local exclusion restriction and monotonicity conditions required for local average treatment effect identificat...
+
+- Version: 0.1.1
+- Install: `install.packages("ivcheck")`
+- CRAN: https://CRAN.R-project.org/package=ivcheck
+- GitHub: https://github.com/charlescoverdale/ivcheck
+- Reference site: https://charlescoverdale.github.io/ivcheck/
+
+This file is a self-contained reference for LLM agents: every exported
+function with its signature, arguments, return value, and example.
+
+---
+
+## `iv_check()`
+
+**Run all applicable IV-validity tests on a fitted model**
+
+Detects which tests are applicable from the structure of the fitted instrumental variable model and runs them. Returns a tidy summary with a one-line verdict.
+
+**Usage**
+
+```r
+iv_check(model, tests = "all", alpha = 0.05, n_boot = 1000, ...)
+```
+
+**Arguments**
+
+- `model` — A fitted IV model from fixest::feols or `ivreg::ivreg()`.
+- `tests` — Character vector of test names to run, or `"all"` (the default) to run every applicable test.
+- `alpha` — Significance level for the verdict. Default 0.05.
+- `n_boot` — Number of bootstrap replications. Default 1000.
+- `...` — Further arguments passed to each underlying test.
+
+**Returns**
+
+An object of class `iv_check` containing a data frame with one row per test (test name, statistic, p-value, verdict) plus an overall verdict string.
+
+**Example**
+
+```r
+if (requireNamespace("fixest", quietly = TRUE)) {
+  set.seed(1)
+  n <- 500
+  df <- data.frame(
+    z = sample(0:1, n, replace = TRUE),
+    x = rnorm(n)
+  )
+  df$d <- rbinom(n, 1, 0.3 + 0.4 * df$z)
+  df$y <- rnorm(n, mean = df$d + 0.5 * df$x)
+  m <- fixest::feols(y ~ x | d ~ z, data = df)
+  iv_check(m, n_boot = 200)
+}
+```
+
+---
+
+## `iv_kitagawa()`
+
+**Kitagawa (2015) / Sun (2023) test for instrument validity**
+
+Tests the joint implication of the local exclusion restriction and the local monotonicity condition in a discrete-instrument setting. Supports binary treatment (Kitagawa 2015), ordered multivalued treatment (Sun 2023 section 3), and unordered multivalued treatment (Sun 2023 section 3.3) under a user-supplied monotonicity set. The null is that the instrument is valid. Under the null, the conditional joint distribution of (Y, D | Z) must satisfy stochastic dominance inequalities on cumulative-tail events. Rejection is evidence that at least one of exclusion or monotonicity fails.
+
+**Usage**
+
+```r
+iv_kitagawa(object, ...)
+
+iv_kitagawadefault(
+  object,
+  d,
+  z,
+  n_boot = 1000,
+  alpha = 0.05,
+  weighting = c("variance", "unweighted"),
+  weights = NULL,
+  parallel = TRUE,
+  se_floor = 0.15,
+  treatment_order = c("ordered", "unordered"),
+  monotonicity_set = NULL,
+  multiplier = c("rademacher", "gaussian", "mammen"),
+  ...
+)
+
+iv_kitagawafixest(
+  object,
+  n_boot = 1000,
+  alpha = 0.05,
+  weighting = c("variance", "unweighted"),
+  weights = NULL,
+  parallel = TRUE,
+  treatment_order = c("ordered", "unordered"),
+  monotonicity_set = NULL,
+  multiplier = c("rademacher", "gaussian", "mammen"),
+  ...
+)
+
+iv_kitagawaivreg(
+  object,
+  n_boot = 1000,
+  alpha = 0.05,
+  weighting = c("variance", "unweighted"),
+  weights = NULL,
+  parallel = TRUE,
+  treatment_order = c("ordered", "unordered"),
+  monotonicity_set = NULL,
+  multiplier = c("rademacher", "gaussian", "mammen"),
+  ...
+)
+```
+
+**Arguments**
+
+- `object` — For the default method: a numeric outcome vector. For the `fixest` and `ivreg` methods: a fitted instrumental variable model from fixest::feols or `ivreg::ivreg()`.
+- `...` — Further arguments passed to methods.
+- `d` — Binary 0/1 treatment vector (default method only).
+- `z` — Discrete instrument (numeric or factor, default method only).
+- `n_boot` — Number of multiplier-bootstrap replications. Default 1000.
+- `alpha` — Significance level for the returned verdict. Default 0.05.
+- `weighting` — Test-statistic weighting. `"variance"` (default) divides each pointwise difference by its plug-in standard error estimator before taking the sup, as in Kitagawa (2015) section 4. `"unweighted"` uses the raw positive-part KS of section 3. The two are asymptotically equivalent at the boundary of the null; `"variance"` has better finite-sample power when instrument cells have unequal sizes.
+- `weights` — Optional survey weights. A non-negative numeric vector of length equal to the sample size. Scaled internally so the mean weight is 1.0 (preserving effective sample-size interpretation). Applied to the empirical CDFs, the bootstrap multiplier process, and the variance-weighted standard errors.
+- `parallel` — Logical. Run bootstrap replications in parallel on POSIX systems via parallel::mclapply. Default `TRUE`.
+- `se_floor` — Trimming constant \xi for the plug-in standard- error denominator in the variance-weighted form. Default 0.15. Kitagawa (2015) section 4 informally recommends \xi \in [0.05, 0.1] for balanced-Z designs. Monte Carlo at skewed Z-cell distributions with weak first stages suggests a slightly larger floor (0.15) keeps empirical size near nominal 5% without measurable power loss in the designs tested. Users reproducing Kitagawa's published examples may set `se_floor = 0.1` to match.
+- `treatment_order` — Either `"ordered"` (default) or `"unordered"`. Binary `D` is handled identically under both. For multivalued `D`, `"ordered"` uses cumulative-tail inequalities `P(Y <= y, D <= ell | Z)` and `P(Y <= y, D >= ell | Z)` across all pairs of instrument values, a stronger family of implications than Sun (2023) equation 10's `d_min`-and-`d_max` subset (but still valid under Sun's Assumption 2.2). `"unordered"` requires a user-specified `monotonicity_set` naming the (level, z_from, z_to) triples for which 1{D_{z_to} = d} <= 1{D_{z_from} = d} is assumed almost surely (Sun 2023 Assumption 2.4(iii)).
+- `monotonicity_set` — A `data.frame` with columns `d`, `z_from`, `z_to` listing the triples that pin down the direction of the monotonicity restriction for `treatment_order = "unordered"`. Ignored when `treatment_order = "ordered"`.
+- `multiplier` — Choice of bootstrap multiplier: `"rademacher"` (default; +/-1 two-point), `"gaussian"` (standard normal), or `"mammen"` (Mammen 1993 asymmetric two-point).
+
+**Returns**
+
+An object of class `iv_test` with elements: test`"Kitagawa (2015)"` for binary treatment; `"Sun (2023)"` for multivalued ordered treatment. statisticNumeric test statistic (Kolmogorov-Smirnov positive-part, scaled by sqrt(n)). p_valueBootstrap p-value. alphaSupplied significance level. n_bootNumber of bootstrap replications used. boot_statsNumeric vector of bootstrap test statistics. bindingList identifying the binding (z, z', d, y) configuration of the observed statistic. nSample size. callMatched call.
+
+**Example**
+
+```r
+# Valid IV: compliers exist, no violations
+set.seed(1)
+n <- 500
+z <- sample(0:1, n, replace = TRUE)
+d <- rbinom(n, 1, 0.3 + 0.4 * z)
+y <- rnorm(n, mean = d)
+iv_kitagawa(y, d, z, n_boot = 200, parallel = FALSE)
+```
+
+---
+
+## `iv_mw()`
+
+**Mourifie-Wan (2017) test for instrument validity**
+
+Reformulates the testable implications of Kitagawa (2015) as a set of conditional moment inequalities and tests them in the intersection- bounds framework of Chernozhukov, Lee, and Rosen (2013). Without covariates `x`, `iv_mw` tests the same inequalities as `iv_kitagawa` and reduces exactly to the variance-weighted Kitagawa test. With covariates, `iv_mw` estimates the conditional CDFs F(y, d | X = x, Z = z) nonparametrically via series regression, computes plug-in heteroscedasticity-robust standard errors, and takes the sup over (y, x) of the variance-weighted positive-part violation. Critical values come from a multiplier bootstrap with adaptive moment selection in the style of Andrews and Soares (2010).
+
+**Usage**
+
+```r
+iv_mw(object, ...)
+
+iv_mwdefault(
+  object,
+  d,
+  z,
+  x = NULL,
+  basis_order = 3L,
+  x_grid_size = 20L,
+  y_grid_size = 50L,
+  adaptive = TRUE,
+  grid = NULL,
+  n_boot = 1000,
+  alpha = 0.05,
+  weights = NULL,
+  parallel = TRUE,
+  ...
+)
+
+iv_mwfixest(
+  object,
+  x = NULL,
+  basis_order = 3L,
+  x_grid_size = 20L,
+  y_grid_size = 50L,
+  adaptive = TRUE,
+  grid = NULL,
+  n_boot = 1000,
+  alpha = 0.05,
+  weights = NULL,
+  parallel = TRUE,
+  ...
+)
+
+iv_mwivreg(
+  object,
+  x = NULL,
+  basis_order = 3L,
+  x_grid_size = 20L,
+  y_grid_size = 50L,
+  adaptive = TRUE,
+  grid = NULL,
+  n_boot = 1000,
+  alpha = 0.05,
+  weights = NULL,
+  parallel = TRUE,
+  ...
+)
+```
+
+**Arguments**
+
+- `object` — For the default method: a numeric outcome vector. For the `fixest` and `ivreg` methods: a fitted instrumental variable model from fixest::feols or `ivreg::ivreg()`.
+- `...` — Further arguments passed to methods.
+- `d` — Binary 0/1 treatment vector (default method only).
+- `z` — Discrete instrument (numeric or factor, default method only).
+- `x` — Optional numeric vector, matrix, or data frame of covariates. If supplied, the test is conditional on the first numeric column of `x`. If `NULL`, the test reduces to the unconditional Mourifie-Wan test.
+- `basis_order` — Polynomial order of the series-regression basis used to estimate `F(y, d | X, Z)`. Default `3L` (cubic). Set to `"auto"` to select the basis order by 5-fold cross-validation over the candidates 2, 3, 4, 5 with squared-error loss on the indicator regression. When `"auto"` is used, the bootstrap becomes post-selection-valid: the test statistic is compared to the maximum of the bootstrap statistics across the candidate orders, which controls size at the nominal level against any selection rule but is mildly conservative relative to a fixed-order test. Runtime with `"auto"` is approximately four times the fixed-order path.
+- `x_grid_size` — Number of quantile points of `x` at which to evaluate the conditional CDFs. Default 20.
+- `y_grid_size` — Number of quantile points of `y` at which to evaluate the inequalities. Default 50.
+- `adaptive` — Logical. If `TRUE` (default), the bootstrap uses the adaptive moment selection of Andrews-Soares (2010) with tuning parameter `kappa_n = sqrt(log(log(n)))`. If `FALSE`, uses the plug-in least-favourable critical value (conservative).
+- `grid` — Deprecated. Ignored; use `y_grid_size` and `x_grid_size` instead.
+- `n_boot` — Number of multiplier-bootstrap replications. Default 1000.
+- `alpha` — Significance level for the returned verdict. Default 0.05.
+- `weights` — Optional survey weights. A non-negative numeric vector of length equal to the sample size. Scaled internally so the mean weight is 1.0 (preserving effective sample-size interpretation). Applied to the empirical CDFs, the bootstrap multiplier process, and the variance-weighted standard errors.
+- `parallel` — Logical. Run bootstrap replications in parallel on POSIX systems via parallel::mclapply. Default `TRUE`.
+
+**Returns**
+
+An object of class `iv_test`; see iv_kitagawa for element descriptions. Additional elements: conditionalLogical, whether covariates were supplied. kappa_nAndrews-Soares tuning parameter used (`NA` if not applicable).
+
+**Example**
+
+```r
+set.seed(1)
+n <- 500
+z <- sample(0:1, n, replace = TRUE)
+d <- rbinom(n, 1, 0.3 + 0.4 * z)
+y <- rnorm(n, mean = d)
+iv_mw(y, d, z, n_boot = 200, parallel = FALSE)
+```
+
+---
+
+## `iv_power()`
+
+**Monte Carlo power curve for IV-validity tests**
+
+Simulates data under a user-specified deviation from validity and estimates the rejection probability of the chosen test at each deviation size. Useful for sample-size planning and for benchmarking different tests on the same design.
+
+**Usage**
+
+```r
+iv_power(
+  y,
+  d,
+  z,
+  method = c("kitagawa", "mw", "testjfe"),
+  alpha = 0.05,
+  n_sims = 500,
+  delta_grid = NULL,
+  n_boot = 200,
+  parallel = TRUE,
+  ...
+)
+```
+
+**Arguments**
+
+- `y, d, z` — Observed data used to anchor the DGP (sample size, cell counts, empirical first-stage).
+- `method` — Which test to benchmark. One of `"kitagawa"`, `"mw"`, or `"testjfe"`.
+- `alpha` — Significance level.
+- `n_sims` — Number of Monte Carlo simulations per deviation.
+- `delta_grid` — Numeric vector of deviation sizes to evaluate. If `NULL`, defaults to `seq(0, 0.3, by = 0.05)`.
+- `n_boot` — Number of bootstrap replications per simulation (for tests that use bootstrap). Default 200, which trades some Monte Carlo noise for tractable runtime.
+- `parallel` — Logical. Run simulations in parallel on POSIX systems via parallel::mclapply. Default `TRUE`.
+- `...` — Further arguments passed to the underlying test.
+
+**Returns**
+
+A data frame with columns `delta` (deviation size) and `power` (estimated rejection probability at level `alpha`).
+
+**Example**
+
+```r
+# Headline power curve for a small-N design
+set.seed(1)
+n <- 300
+z <- sample(0:1, n, replace = TRUE)
+d <- rbinom(n, 1, 0.3 + 0.4 * z)
+y <- rnorm(n, mean = d)
+iv_power(y, d, z, method = "kitagawa", n_sims = 50, n_boot = 100)
+```
+
+---
+
+## `iv_testjfe()`
+
+**Frandsen-Lefgren-Leslie (2023) test for instrument validity in judge-fixed-effects designs**
+
+Jointly tests the local exclusion and monotonicity assumptions when the instruments are a set of mutually exclusive dummy variables (the leniency-of-assigned-judge design). Supports binary and multivalued discrete treatments. Under the joint null, the per-judge mean outcome mu_j = E[Y | J = j] must be a linear function of the per-judge treatment propensities P(D = d | J = j). Rejection is evidence that at least one of exclusion or monotonicity fails.
+
+**Usage**
+
+```r
+iv_testjfe(object, ...)
+
+iv_testjfedefault(
+  object,
+  d,
+  z,
+  x = NULL,
+  n_boot = 1000,
+  alpha = 0.05,
+  method = c("asymptotic", "bootstrap"),
+  weights = NULL,
+  basis_order = 1L,
+  parallel = TRUE,
+  ...
+)
+
+iv_testjfefixest(
+  object,
+  x = NULL,
+  n_boot = 1000,
+  alpha = 0.05,
+  method = c("asymptotic", "bootstrap"),
+  weights = NULL,
+  basis_order = 1L,
+  parallel = TRUE,
+  ...
+)
+
+iv_testjfeivreg(
+  object,
+  x = NULL,
+  n_boot = 1000,
+  alpha = 0.05,
+  method = c("asymptotic", "bootstrap"),
+  weights = NULL,
+  basis_order = 1L,
+  parallel = TRUE,
+  ...
+)
+```
+
+**Arguments**
+
+- `object` — For the default method: a numeric outcome vector. For the `fixest` and `ivreg` methods: a fitted instrumental variable model from fixest::feols or `ivreg::ivreg()`.
+- `...` — Further arguments passed to methods.
+- `d` — Binary 0/1 treatment vector (default method only).
+- `z` — Factor, integer, or matrix of mutually exclusive dummy variables identifying the judge (or other random-assignment unit).
+- `x` — Optional numeric vector, matrix, or data frame of covariates. If supplied, `y` and `d` are residualised on `x` before the per- judge means are computed.
+- `n_boot` — Number of multiplier-bootstrap replications. Default 1000.
+- `alpha` — Significance level for the returned verdict. Default 0.05.
+- `method` — Reference distribution for the p-value. `"asymptotic"` (default) uses the chi-squared with `K - (basis_order + 1)` degrees of freedom. `"bootstrap"` uses the multiplier bootstrap of the restricted-model residual process. Asymptotic is fast and accurate for moderate `K`; bootstrap is preferred for small `K` or if errors are far from normal.
+- `weights` — Optional survey weights. A non-negative numeric vector of length equal to the sample size. Scaled internally so the mean weight is 1.0 (preserving effective sample-size interpretation). Applied to the empirical CDFs, the bootstrap multiplier process, and the variance-weighted standard errors.
+- `basis_order` — Order of the polynomial basis used to approximate the outcome / propensity function `phi(p)` in Frandsen-Lefgren-Leslie (2023) step 1. Default `1L` reduces to the Sargan-Hansen overidentification form, which imposes constant treatment effects. Values above 1 relax this to phi(p) = delta_0 + delta_1 p + delta_2 p^2 + ... + delta_m p^m and test the joint-zero restriction on judge residuals under the richer fit. Only binary treatment is supported when `basis_order > 1`. The slope-bounded moment-inequality component of the FLL test is not implemented in v0.1.0 (deferred to v0.2.0).
+- `parallel` — Logical. Run bootstrap replications in parallel on POSIX systems via parallel::mclapply. Default `TRUE`.
+
+**Returns**
+
+An object of class `iv_test`; see iv_kitagawa for element descriptions. Additional elements: n_judgesNumber of distinct judges / assignment groups. coefFitted weighted-LS slope and intercept of `mu_j` on `p_j`. pairwise_lateK x K matrix of pairwise Wald LATE estimates `(mu_j - mu_k) / (p_j - p_k)`. Under the null every entry estimates the common complier LATE. worst_pairList identifying the judge pair with the largest deviation of its Wald LATE from the fitted slope; useful for diagnosing the source of a rejection.
+
+**Example**
+
+```r
+set.seed(1)
+n <- 2000
+judge <- sample.int(20, n, replace = TRUE)
+d <- rbinom(n, 1, 0.3 + 0.02 * judge)
+y <- rnorm(n, mean = d)
+iv_testjfe(y, d, judge, n_boot = 200, parallel = FALSE)
+```
+
+---
+

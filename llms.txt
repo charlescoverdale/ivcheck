@@ -2,6 +2,8 @@
 
 > Implements tests for the identifying assumptions of instrumental variable models, the local exclusion restriction and monotonicity conditions required for local average treatment effect identificat... Install with `install.packages("ivcheck")`.
 
+Full API reference (for agents): https://raw.githubusercontent.com/charlescoverdale/ivcheck/main/llms-full.txt
+
 Version: 0.1.1. License: MIT.
 
 ## Functions
