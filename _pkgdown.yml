@@ -26,3 +26,17 @@ reference:
   - title: "Package"
     contents:
       - ivcheck-package
+
+  - title: "Data"
+    desc: "Built-in instrument validity datasets"
+    contents:
+      - card1995
+
+  - title: "S3 Methods"
+    desc: "Format, plot, print, and summary methods"
+    contents:
+      - format.iv_test
+      - plot.iv_test
+      - print.iv_check
+      - print.iv_test
+      - summary.iv_test
