@@ -22,3 +22,7 @@ reference:
       - iv_power
       - iv_check
 
+
+  - title: "Package"
+    contents:
+      - ivcheck-package
