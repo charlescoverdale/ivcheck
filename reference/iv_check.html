@@ -59,7 +59,7 @@ a one-line verdict.</p>
 
 
 <dl><dt id="arg-model">model<a class="anchor" aria-label="anchor" href="#arg-model"></a></dt>
-<dd><p>A fitted IV model from <a href="https://rdrr.io/pkg/fixest/man/feols.html" class="external-link">fixest::feols</a> or <code><a href="https://rdrr.io/pkg/ivreg/man/ivreg.html" class="external-link">ivreg::ivreg()</a></code>.</p></dd>
+<dd><p>A fitted IV model from <a href="https://lrberge.github.io/fixest/reference/feols.html" class="external-link">fixest::feols</a> or <code><a href="https://zeileis.github.io/ivreg/reference/ivreg.html" class="external-link">ivreg::ivreg()</a></code>.</p></dd>
 
 
 <dt id="arg-tests">tests<a class="anchor" aria-label="anchor" href="#arg-tests"></a></dt>
@@ -106,13 +106,13 @@ of mutually exclusive dummy variables (judge-IV / group design).</p></li>
 <span class="r-in"><span>  <span class="op">)</span></span></span>
 <span class="r-in"><span>  <span class="va">df</span><span class="op">$</span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html" class="external-link">rbinom</a></span><span class="op">(</span><span class="va">n</span>, <span class="fl">1</span>, <span class="fl">0.3</span> <span class="op">+</span> <span class="fl">0.4</span> <span class="op">*</span> <span class="va">df</span><span class="op">$</span><span class="va">z</span><span class="op">)</span></span></span>
 <span class="r-in"><span>  <span class="va">df</span><span class="op">$</span><span class="va">y</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n</span>, mean <span class="op">=</span> <span class="va">df</span><span class="op">$</span><span class="va">d</span> <span class="op">+</span> <span class="fl">0.5</span> <span class="op">*</span> <span class="va">df</span><span class="op">$</span><span class="va">x</span><span class="op">)</span></span></span>
-<span class="r-in"><span>  <span class="va">m</span> <span class="op">&lt;-</span> <span class="fu">fixest</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/fixest/man/feols.html" class="external-link">feols</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x</span> <span class="op">|</span> <span class="va">d</span> <span class="op">~</span> <span class="va">z</span>, data <span class="op">=</span> <span class="va">df</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="va">m</span> <span class="op">&lt;-</span> <span class="fu">fixest</span><span class="fu">::</span><span class="fu"><a href="https://lrberge.github.io/fixest/reference/feols.html" class="external-link">feols</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x</span> <span class="op">|</span> <span class="va">d</span> <span class="op">~</span> <span class="va">z</span>, data <span class="op">=</span> <span class="va">df</span><span class="op">)</span></span></span>
 <span class="r-in"><span>  <span class="fu">iv_check</span><span class="op">(</span><span class="va">m</span>, n_boot <span class="op">=</span> <span class="fl">200</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">──</span> <span style="font-weight: bold;">IV validity diagnostic</span> <span style="color: #00BBBB;">──────────────────────────────────────────────────────</span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Kitagawa (2015)</span>: stat = <span style="color: #0000BB;">"0.845"</span>, p = <span style="color: #0000BB;">"1"</span>, pass</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Mourifie-Wan (2017)</span>: stat = <span style="color: #0000BB;">"42.4"</span>, p = <span style="color: #0000BB;">"0.465"</span>, pass</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Mourifie-Wan (2017)</span>: stat = <span style="color: #0000BB;">"42.4"</span>, p = <span style="color: #0000BB;">"0.45"</span>, pass</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Overall: cannot reject IV validity at 0.05.</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>

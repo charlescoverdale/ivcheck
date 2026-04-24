@@ -60,7 +60,7 @@
 <p><strong>Fix (recommended for v0.1.0)</strong>: in <code>extract_iv_data.fixest</code>, check <code>length(object$fixef_vars) &gt; 0</code>; if so, <strong>abort</strong> with a clear message:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">object</span><span class="op">$</span><span class="va">fixef_vars</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0L</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu">cli</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/cli/man/cli_abort.html" class="external-link">cli_abort</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>  <span class="fu">cli</span><span class="fu">::</span><span class="fu"><a href="https://cli.r-lib.org/reference/cli_abort.html" class="external-link">cli_abort</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
 <span>    <span class="st">"{.fn ivcheck} v0.1.0 does not support models with fixed effects."</span>,</span>
 <span>    i <span class="op">=</span> <span class="st">"The discrete-Z tests of Kitagawa / Mourifié-Wan / FLL operate on the raw</span></span>
 <span><span class="st">       (Y, D, Z) joint distribution; residualising on fixed effects destroys</span></span>
@@ -128,7 +128,7 @@
 <p><strong>Fix (recommended)</strong>: abort with an explicit error when <code>ncol(x_mat) &gt; 1</code>:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">x_mat</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">1L</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu">cli</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/cli/man/cli_abort.html" class="external-link">cli_abort</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>  <span class="fu">cli</span><span class="fu">::</span><span class="fu"><a href="https://cli.r-lib.org/reference/cli_abort.html" class="external-link">cli_abort</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
 <span>    <span class="st">"{.fn iv_mw} v0.1.0 supports a single conditioning covariate."</span>,</span>
 <span>    i <span class="op">=</span> <span class="st">"Multivariate conditioning requires a tensor-product basis (planned</span></span>
 <span><span class="st">       for v0.2.0). Workaround: condition on the covariate that most plausibly</span></span>
@@ -151,7 +151,7 @@
 <code class="sourceCode R"><span><span class="va">BtB_inv</span> <span class="op">&lt;-</span> <span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/solve.html" class="external-link">solve</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/crossprod.html" class="external-link">crossprod</a></span><span class="op">(</span><span class="va">Bk</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="fl">1e-8</span>, <span class="va">P</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  error <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="fu">cli</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/cli/man/cli_abort.html" class="external-link">cli_abort</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>    <span class="fu">cli</span><span class="fu">::</span><span class="fu"><a href="https://cli.r-lib.org/reference/cli_abort.html" class="external-link">cli_abort</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
 <span>      <span class="st">"Series basis is rank-deficient in Z = {z_levels[k]} cell (n = {length(idx)})."</span>,</span>
 <span>      i <span class="op">=</span> <span class="st">"Try reducing {.arg basis_order} (currently {basis_order}) or ensuring</span></span>
 <span><span class="st">         more variation in {.arg x} within each Z cell."</span></span>

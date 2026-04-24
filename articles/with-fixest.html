@@ -72,7 +72,7 @@
 </h2>
 <p><code>fixest</code> is the dominant R package for applied IV
 estimation. This vignette shows the drop-in integration: fit an IV model
-with <code><a href="https://rdrr.io/pkg/fixest/man/feols.html" class="external-link">feols()</a></code>, pass it to <code><a href="../reference/iv_check.html">iv_check()</a></code>, and get
+with <code><a href="https://lrberge.github.io/fixest/reference/feols.html" class="external-link">feols()</a></code>, pass it to <code><a href="../reference/iv_check.html">iv_check()</a></code>, and get
 every applicable IV-validity test in one call.</p>
 <p>If you are already using <code>fixest</code> for your paper, nothing
 about your workflow changes. Add one line and your IV estimate now comes
@@ -112,7 +112,7 @@ treatment.</p>
 <h2 id="fit-the-iv-regression">Fit the IV regression<a class="anchor" aria-label="anchor" href="#fit-the-iv-regression"></a>
 </h2>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">m</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/fixest/man/feols.html" class="external-link">feols</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">m</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://lrberge.github.io/fixest/reference/feols.html" class="external-link">feols</a></span><span class="op">(</span></span>
 <span>  <span class="va">lwage</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">black</span> <span class="op">+</span> <span class="va">south</span> <span class="op">|</span> <span class="va">college</span> <span class="op">~</span> <span class="va">near_college</span>,</span>
 <span>  data <span class="op">=</span> <span class="va">card1995</span></span>
 <span><span class="op">)</span></span>
@@ -193,11 +193,11 @@ distribution, consistent with a non-rejection.</p>
 </h2>
 <p>If you have <code>modelsummary</code> installed,
 <code>iv_check</code> results are picked up automatically through
-<code><a href="https://rdrr.io/pkg/generics/man/glance.html" class="external-link">broom::glance</a></code> registered on package load. This lets you put
+<code><a href="https://generics.r-lib.org/reference/glance.html" class="external-link">broom::glance</a></code> registered on package load. This lets you put
 a validity p-value directly in a regression table footer:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://modelsummary.com" class="external-link">modelsummary</a></span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/pkg/modelsummary/man/modelsummary.html" class="external-link">modelsummary</a></span><span class="op">(</span></span>
+<span><span class="fu"><a href="https://modelsummary.com/man/modelsummary.html" class="external-link">modelsummary</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"IV estimate"</span> <span class="op">=</span> <span class="va">m</span><span class="op">)</span>,</span>
 <span>  gof_custom <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>    <span class="st">"Kitagawa 2015 p-value"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"%.3f"</span>, <span class="va">k</span><span class="op">$</span><span class="va">p_value</span><span class="op">)</span></span>
@@ -215,7 +215,7 @@ a validity p-value directly in a regression table footer:</p>
 <span><span class="co"># ... data loading ...</span></span>
 <span></span>
 <span><span class="co"># IV estimate</span></span>
-<span><span class="va">m</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/fixest/man/feols.html" class="external-link">feols</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">controls</span> <span class="op">|</span> <span class="va">d</span> <span class="op">~</span> <span class="va">z</span>, data <span class="op">=</span> <span class="va">df</span><span class="op">)</span></span>
+<span><span class="va">m</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://lrberge.github.io/fixest/reference/feols.html" class="external-link">feols</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">controls</span> <span class="op">|</span> <span class="va">d</span> <span class="op">~</span> <span class="va">z</span>, data <span class="op">=</span> <span class="va">df</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># IV validity diagnostic</span></span>
 <span><span class="va">chk</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/iv_check.html">iv_check</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span></span>

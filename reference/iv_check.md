@@ -15,8 +15,9 @@ iv_check(model, tests = "all", alpha = 0.05, n_boot = 1000, ...)
 - model:
 
   A fitted IV model from
-  [fixest::feols](https://rdrr.io/pkg/fixest/man/feols.html) or
-  [`ivreg::ivreg()`](https://rdrr.io/pkg/ivreg/man/ivreg.html).
+  [fixest::feols](https://lrberge.github.io/fixest/reference/feols.html)
+  or
+  [`ivreg::ivreg()`](https://zeileis.github.io/ivreg/reference/ivreg.html).
 
 - tests:
 
@@ -73,7 +74,7 @@ if (requireNamespace("fixest", quietly = TRUE)) {
 #> 
 #> ── IV validity diagnostic ──────────────────────────────────────────────────────
 #> Kitagawa (2015): stat = "0.845", p = "1", pass
-#> Mourifie-Wan (2017): stat = "42.4", p = "0.465", pass
+#> Mourifie-Wan (2017): stat = "42.4", p = "0.45", pass
 #> Overall: cannot reject IV validity at 0.05.
 # }
 ```

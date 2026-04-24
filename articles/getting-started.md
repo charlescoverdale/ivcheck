@@ -209,9 +209,10 @@ When
 is given a raw-vector input it detects applicable tests from the design
 (binary `D`, discrete `Z`, whether `Z` looks like a judge design) and
 runs them in turn. Pass a fitted
-[`fixest::feols`](https://rdrr.io/pkg/fixest/man/feols.html) or
-[`ivreg::ivreg`](https://rdrr.io/pkg/ivreg/man/ivreg.html) model and it
-extracts the three components itself: see
+[`fixest::feols`](https://lrberge.github.io/fixest/reference/feols.html)
+or
+[`ivreg::ivreg`](https://zeileis.github.io/ivreg/reference/ivreg.html)
+model and it extracts the three components itself: see
 [`vignette("with-fixest")`](https://charlescoverdale.github.io/ivcheck/articles/with-fixest.md).
 
 ## Reading the verdict

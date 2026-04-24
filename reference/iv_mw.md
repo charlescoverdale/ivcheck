@@ -74,8 +74,9 @@ iv_mw(
 
   For the default method: a numeric outcome vector. For the `fixest` and
   `ivreg` methods: a fitted instrumental variable model from
-  [fixest::feols](https://rdrr.io/pkg/fixest/man/feols.html) or
-  [`ivreg::ivreg()`](https://rdrr.io/pkg/ivreg/man/ivreg.html).
+  [fixest::feols](https://lrberge.github.io/fixest/reference/feols.html)
+  or
+  [`ivreg::ivreg()`](https://zeileis.github.io/ivreg/reference/ivreg.html).
 
 - ...:
 

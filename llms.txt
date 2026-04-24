@@ -28,8 +28,9 @@ Kitagawa’s test ships as supplementary Matlab code, Mourifie-Wan relies
 on the Stata `clrtest` module, and Frandsen-Lefgren-Leslie ships a Stata
 SSC module called `testjfe`. None is in R. `ivcheck` closes that gap:
 two added lines to a
-[`fixest::feols`](https://rdrr.io/pkg/fixest/man/feols.html) call and
-you have a published falsification test ready for your paper’s appendix.
+[`fixest::feols`](https://lrberge.github.io/fixest/reference/feols.html)
+call and you have a published falsification test ready for your paper’s
+appendix.
 
 ## The current landscape
 
@@ -170,7 +171,8 @@ iv_check(m, n_boot = 500)
 detects which tests are applicable from the model structure (binary
 versus multivalued D, discrete versus judge-style Z, presence of
 covariates) and runs all of them. Works identically on
-[`ivreg::ivreg()`](https://rdrr.io/pkg/ivreg/man/ivreg.html) objects.
+[`ivreg::ivreg()`](https://zeileis.github.io/ivreg/reference/ivreg.html)
+objects.
 
 ### Power planning
 
