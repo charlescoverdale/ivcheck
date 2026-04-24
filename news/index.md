@@ -62,10 +62,9 @@ fidelity” sub-section of the README and the companion R Journal paper at
 ### S3 methods
 
 - Dispatch on
-  [`fixest::feols`](https://lrberge.github.io/fixest/reference/feols.html)
-  and
-  [`ivreg::ivreg`](https://zeileis.github.io/ivreg/reference/ivreg.html)
-  fitted IV models.
+  [`fixest::feols`](https://rdrr.io/pkg/fixest/man/feols.html) and
+  [`ivreg::ivreg`](https://rdrr.io/pkg/ivreg/man/ivreg.html) fitted IV
+  models.
 - [`print()`](https://rdrr.io/r/base/print.html),
   [`plot()`](https://rdrr.io/r/graphics/plot.default.html),
   [`summary()`](https://rdrr.io/r/base/summary.html) methods for

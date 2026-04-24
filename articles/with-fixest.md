@@ -4,8 +4,7 @@
 
 `fixest` is the dominant R package for applied IV estimation. This
 vignette shows the drop-in integration: fit an IV model with
-[`feols()`](https://lrberge.github.io/fixest/reference/feols.html), pass
-it to
+[`feols()`](https://rdrr.io/pkg/fixest/man/feols.html), pass it to
 [`iv_check()`](https://charlescoverdale.github.io/ivcheck/reference/iv_check.md),
 and get every applicable IV-validity test in one call.
 
@@ -132,7 +131,7 @@ distribution, consistent with a non-rejection.
 
 If you have `modelsummary` installed, `iv_check` results are picked up
 automatically through
-[`broom::glance`](https://generics.r-lib.org/reference/glance.html)
+[`broom::glance`](https://rdrr.io/pkg/generics/man/glance.html)
 registered on package load. This lets you put a validity p-value
 directly in a regression table footer:
 
