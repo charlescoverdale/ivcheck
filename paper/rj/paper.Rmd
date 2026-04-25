@@ -1,6 +1,11 @@
 ---
 title: "ivcheck: Tests of Instrumental Variable Validity in R"
-author: "Charles Coverdale"
+author:
+  - name: Charles Coverdale
+    affiliation: "London, United Kingdom"
+    address: "United Kingdom"
+    email: charles.f.coverdale@gmail.com
+    url: https://github.com/charlescoverdale/ivcheck
 abstract: >
   The \CRANpkg{ivcheck} package implements three falsification tests of
   the identifying assumptions behind instrumental variable estimation of
