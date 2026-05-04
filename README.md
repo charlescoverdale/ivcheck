@@ -202,8 +202,12 @@ Read before using in published work.
 
 ## Related packages
 
-| Package | What it covers |
+| Package | Description |
 |---|---|
+| [`predictset`](https://github.com/charlescoverdale/predictset) | Conformal prediction intervals (uncertainty around treatment effects) |
+| [`nowcast`](https://github.com/charlescoverdale/nowcast) | Economic nowcasting |
+| [`mpshock`](https://github.com/charlescoverdale/mpshock) | Monetary policy shock series (commonly used as instruments) |
+| [`inequality`](https://github.com/charlescoverdale/inequality) | Inequality measurement (distributional treatment effects) |
 | [`fixest`](https://cran.r-project.org/package=fixest) | Fast IV estimation via `feols(y ~ x \| d ~ z)` (upstream from `ivcheck`) |
 | [`ivreg`](https://cran.r-project.org/package=ivreg) | 2SLS with Wu-Hausman, Sargan, weak-IV F (upstream from `ivcheck`) |
 | [`ivmodel`](https://cran.r-project.org/package=ivmodel) | k-class estimators, weak-IV robust CIs, sensitivity analysis |
