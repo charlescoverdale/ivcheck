@@ -195,28 +195,28 @@
 <col width="50%">
 <col width="50%">
 </colgroup>
-<thead><tr class="header">
+<thead><tr>
 <th>Function</th>
 <th>Purpose</th>
 </tr></thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code><a href="reference/iv_kitagawa.html">iv_kitagawa()</a></code></td>
 <td>Kitagawa (2015) variance-weighted KS test. Extends to multivalued D via Sun (2023).</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code><a href="reference/iv_mw.html">iv_mw()</a></code></td>
 <td>Mourifie-Wan (2017) conditional-inequality test. Full CLR intersection-bounds with adaptive moment selection under covariates.</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code><a href="reference/iv_testjfe.html">iv_testjfe()</a></code></td>
 <td>Frandsen-Lefgren-Leslie (2023) test for judge / group IV designs. Supports multivalued treatment.</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code><a href="reference/iv_check.html">iv_check()</a></code></td>
 <td>Wrapper that auto-detects applicable tests and runs them on a fitted IV model.</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code><a href="reference/iv_power.html">iv_power()</a></code></td>
 <td>Monte Carlo power curve for sample-size planning.</td>
 </tr>
@@ -320,24 +320,40 @@
 <col width="50%">
 <col width="50%">
 </colgroup>
-<thead><tr class="header">
+<thead><tr>
 <th>Package</th>
-<th>What it covers</th>
+<th>Description</th>
 </tr></thead>
 <tbody>
-<tr class="odd">
+<tr>
+<td><a href="https://github.com/charlescoverdale/predictset" class="external-link"><code>predictset</code></a></td>
+<td>Conformal prediction intervals (uncertainty around treatment effects)</td>
+</tr>
+<tr>
+<td><a href="https://github.com/charlescoverdale/nowcast" class="external-link"><code>nowcast</code></a></td>
+<td>Economic nowcasting</td>
+</tr>
+<tr>
+<td><a href="https://github.com/charlescoverdale/mpshock" class="external-link"><code>mpshock</code></a></td>
+<td>Monetary policy shock series (commonly used as instruments)</td>
+</tr>
+<tr>
+<td><a href="https://github.com/charlescoverdale/inequality" class="external-link"><code>inequality</code></a></td>
+<td>Inequality measurement (distributional treatment effects)</td>
+</tr>
+<tr>
 <td><a href="https://cran.r-project.org/package=fixest" class="external-link"><code>fixest</code></a></td>
 <td>Fast IV estimation via <code>feols(y ~ x \| d ~ z)</code> (upstream from <code>ivcheck</code>)</td>
 </tr>
-<tr class="even">
+<tr>
 <td><a href="https://cran.r-project.org/package=ivreg" class="external-link"><code>ivreg</code></a></td>
 <td>2SLS with Wu-Hausman, Sargan, weak-IV F (upstream from <code>ivcheck</code>)</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><a href="https://cran.r-project.org/package=ivmodel" class="external-link"><code>ivmodel</code></a></td>
 <td>k-class estimators, weak-IV robust CIs, sensitivity analysis</td>
 </tr>
-<tr class="even">
+<tr>
 <td><a href="https://cran.r-project.org/package=ivDiag" class="external-link"><code>ivDiag</code></a></td>
 <td>Effective F, Anderson-Rubin, valid-t, local-to-zero tests</td>
 </tr>
@@ -365,29 +381,29 @@
 <col width="33%">
 <col width="33%">
 </colgroup>
-<thead><tr class="header">
+<thead><tr>
 <th>Function</th>
 <th>Reference</th>
 <th>DOI</th>
 </tr></thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code><a href="reference/iv_kitagawa.html">iv_kitagawa()</a></code></td>
 <td>Kitagawa, T. (2015). A Test for Instrument Validity. <em>Econometrica</em> 83(5): 2043-2063.</td>
 <td><a href="https://doi.org/10.3982/ECTA11974" class="external-link">10.3982/ECTA11974</a></td>
 </tr>
-<tr class="even">
+<tr>
 <td>
 <code><a href="reference/iv_kitagawa.html">iv_kitagawa()</a></code> (multivalued D)</td>
 <td>Sun, Z. (2023). Instrument validity for heterogeneous causal effects. <em>Journal of Econometrics</em> 237(2): 105523.</td>
 <td><a href="https://doi.org/10.1016/j.jeconom.2023.105523" class="external-link">10.1016/j.jeconom.2023.105523</a></td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code><a href="reference/iv_mw.html">iv_mw()</a></code></td>
 <td>Mourifie, I. and Wan, Y. (2017). Testing Local Average Treatment Effect Assumptions. <em>Review of Economics and Statistics</em> 99(2): 305-313.</td>
 <td><a href="https://doi.org/10.1162/REST_a_00622" class="external-link">10.1162/REST_a_00622</a></td>
 </tr>
-<tr class="even">
+<tr>
 <td><code><a href="reference/iv_testjfe.html">iv_testjfe()</a></code></td>
 <td>Frandsen, B. R., Lefgren, L. J., Leslie, E. C. (2023). Judging Judge Fixed Effects. <em>American Economic Review</em> 113(1): 253-277.</td>
 <td><a href="https://doi.org/10.1257/aer.20201860" class="external-link">10.1257/aer.20201860</a></td>

@@ -41,6 +41,7 @@ data will get misleading conclusions.
 `length(object$fixef_vars) > 0`; if so, **abort** with a clear message:
 
 ``` r
+
 if (length(object$fixef_vars) > 0L) {
   cli::cli_abort(c(
     "{.fn ivcheck} v0.1.0 does not support models with fixed effects.",
@@ -98,6 +99,7 @@ residualised indicators during `P_design` construction and use them in
 `u_i`. Rough sketch around R/iv_testjfe.R:170–184:
 
 ``` r
+
 ind_resid_mat <- matrix(0, nrow = n, ncol = M)  # new
 for (m in seq_len(M)) {
   dv <- d_vals[m + 1L]
@@ -131,6 +133,7 @@ MC with n_reps = 200 and K = 10 judges catches this if broken.
 **Where**: R/utils.R:46–50.
 
 ``` r
+
 if (!all(vals == seq(0L, k - 1L))) {
   mapping <- stats::setNames(seq(0L, k - 1L), vals)
   d_num <- as.numeric(mapping[as.character(d_num)])
@@ -174,6 +177,7 @@ fidelity concern.
 `ncol(x_mat) > 1`:
 
 ``` r
+
 if (ncol(x_mat) > 1L) {
   cli::cli_abort(c(
     "{.fn iv_mw} v0.1.0 supports a single conditioning covariate.",
@@ -191,6 +195,7 @@ A loud error is better than a silent drop.
 **Where**: R/mw_core.R:58–60.
 
 ``` r
+
 BtB_inv <- tryCatch(
   solve(crossprod(Bk) + diag(1e-8, P)),
   error = function(e) diag(1e-4, P)
@@ -206,6 +211,7 @@ silently substitute a tiny diagonal matrix. The downstream projection
 **Fix**: abort with a diagnostic:
 
 ``` r
+
 BtB_inv <- tryCatch(
   solve(crossprod(Bk) + diag(1e-8, P)),
   error = function(e) {
@@ -231,6 +237,7 @@ papers’ numbers?” and we don’t have a direct answer in the test suite.
 **Fix**: add to test-known-values.R:
 
 ``` r
+
 test_that("iv_kitagawa reproduces the Card (1995) binary-college rejection", {
   skip_on_cran()
   data(card1995)
@@ -276,6 +283,7 @@ multivalued requires iv_kitagawa (Sun 2023 mode).
 **Where**: R/mw_core.R:167–169.
 
 ``` r
+
 se_low  <- SE_on_grid[, , k_low,  d_idx]
 se_high <- SE_on_grid[, , k_high, d_idx]
 SE_pair <- pmax(sqrt(se_low^2 + se_high^2), se_floor)

@@ -66,6 +66,7 @@ support via section 4 of the paper. All designed to slot into existing
 ## Installation
 
 ``` r
+
 # Once accepted by CRAN
 install.packages("ivcheck")
 
@@ -77,6 +78,7 @@ devtools::install_github("charlescoverdale/ivcheck")
 ## Quick start
 
 ``` r
+
 library(fixest)
 library(ivcheck)
 
@@ -98,6 +100,7 @@ Output lines prefixed with `#>` show what the console prints.
 ### A single test on raw vectors
 
 ``` r
+
 library(ivcheck)
 
 set.seed(1)
@@ -122,6 +125,7 @@ replications run across cores on POSIX systems.
 ### With covariates (Mourifie-Wan)
 
 ``` r
+
 x <- rnorm(n)
 mw <- iv_mw(y, d, z, x = x, n_boot = 500)
 print(mw)
@@ -138,6 +142,7 @@ reduces exactly to the variance-weighted Kitagawa test.
 ### Judge designs (Frandsen-Lefgren-Leslie)
 
 ``` r
+
 set.seed(1)
 n <- 2000
 judge <- sample.int(20, n, replace = TRUE)
@@ -159,6 +164,7 @@ section 4.
 ### One-shot diagnostic on a fitted model
 
 ``` r
+
 library(fixest)
 
 df <- data.frame(z = z, d = d, y = y, x = x)
@@ -177,6 +183,7 @@ objects.
 ### Power planning
 
 ``` r
+
 pw <- iv_power(y, d, z, method = "kitagawa", n_sims = 200)
 ```
 
@@ -188,6 +195,7 @@ size for a study.
 ## Example: end-to-end with Card (1995)
 
 ``` r
+
 library(ivcheck)
 library(fixest)
 
@@ -223,13 +231,13 @@ itself is driving the finding.
 
 ## Functions
 
-| Function                                                                               | Purpose                                                                                                                        |
-|----------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------|
-| [`iv_kitagawa()`](https://charlescoverdale.github.io/ivcheck/reference/iv_kitagawa.md) | Kitagawa (2015) variance-weighted KS test. Extends to multivalued D via Sun (2023).                                            |
-| [`iv_mw()`](https://charlescoverdale.github.io/ivcheck/reference/iv_mw.md)             | Mourifie-Wan (2017) conditional-inequality test. Full CLR intersection-bounds with adaptive moment selection under covariates. |
-| [`iv_testjfe()`](https://charlescoverdale.github.io/ivcheck/reference/iv_testjfe.md)   | Frandsen-Lefgren-Leslie (2023) test for judge / group IV designs. Supports multivalued treatment.                              |
-| [`iv_check()`](https://charlescoverdale.github.io/ivcheck/reference/iv_check.md)       | Wrapper that auto-detects applicable tests and runs them on a fitted IV model.                                                 |
-| [`iv_power()`](https://charlescoverdale.github.io/ivcheck/reference/iv_power.md)       | Monte Carlo power curve for sample-size planning.                                                                              |
+| Function | Purpose |
+|----|----|
+| [`iv_kitagawa()`](https://charlescoverdale.github.io/ivcheck/reference/iv_kitagawa.md) | Kitagawa (2015) variance-weighted KS test. Extends to multivalued D via Sun (2023). |
+| [`iv_mw()`](https://charlescoverdale.github.io/ivcheck/reference/iv_mw.md) | Mourifie-Wan (2017) conditional-inequality test. Full CLR intersection-bounds with adaptive moment selection under covariates. |
+| [`iv_testjfe()`](https://charlescoverdale.github.io/ivcheck/reference/iv_testjfe.md) | Frandsen-Lefgren-Leslie (2023) test for judge / group IV designs. Supports multivalued treatment. |
+| [`iv_check()`](https://charlescoverdale.github.io/ivcheck/reference/iv_check.md) | Wrapper that auto-detects applicable tests and runs them on a fitted IV model. |
+| [`iv_power()`](https://charlescoverdale.github.io/ivcheck/reference/iv_power.md) | Monte Carlo power curve for sample-size planning. |
 
 ## Limitations
 
@@ -392,12 +400,16 @@ Read before using in published work.
 
 ## Related packages
 
-| Package                                                 | What it covers                                                           |
-|---------------------------------------------------------|--------------------------------------------------------------------------|
-| [`fixest`](https://cran.r-project.org/package=fixest)   | Fast IV estimation via `feols(y ~ x \| d ~ z)` (upstream from `ivcheck`) |
-| [`ivreg`](https://cran.r-project.org/package=ivreg)     | 2SLS with Wu-Hausman, Sargan, weak-IV F (upstream from `ivcheck`)        |
-| [`ivmodel`](https://cran.r-project.org/package=ivmodel) | k-class estimators, weak-IV robust CIs, sensitivity analysis             |
-| [`ivDiag`](https://cran.r-project.org/package=ivDiag)   | Effective F, Anderson-Rubin, valid-t, local-to-zero tests                |
+| Package | Description |
+|----|----|
+| [`predictset`](https://github.com/charlescoverdale/predictset) | Conformal prediction intervals (uncertainty around treatment effects) |
+| [`nowcast`](https://github.com/charlescoverdale/nowcast) | Economic nowcasting |
+| [`mpshock`](https://github.com/charlescoverdale/mpshock) | Monetary policy shock series (commonly used as instruments) |
+| [`inequality`](https://github.com/charlescoverdale/inequality) | Inequality measurement (distributional treatment effects) |
+| [`fixest`](https://cran.r-project.org/package=fixest) | Fast IV estimation via `feols(y ~ x \| d ~ z)` (upstream from `ivcheck`) |
+| [`ivreg`](https://cran.r-project.org/package=ivreg) | 2SLS with Wu-Hausman, Sargan, weak-IV F (upstream from `ivcheck`) |
+| [`ivmodel`](https://cran.r-project.org/package=ivmodel) | k-class estimators, weak-IV robust CIs, sensitivity analysis |
+| [`ivDiag`](https://cran.r-project.org/package=ivDiag) | Effective F, Anderson-Rubin, valid-t, local-to-zero tests |
 
 `ivcheck` complements rather than competes with these. `fixest` or
 `ivreg` does the estimation, `ivDiag` does weak-IV post-estimation
@@ -417,17 +429,18 @@ Cite both the package and the underlying paper(s) for the test you use.
 Package citation:
 
 ``` r
+
 citation("ivcheck")
 ```
 
 ### Test-specific references (DOIs verified via crossref.org)
 
-| Function                                                                                               | Reference                                                                                                                                 | DOI                                                                            |
-|--------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------|
-| [`iv_kitagawa()`](https://charlescoverdale.github.io/ivcheck/reference/iv_kitagawa.md)                 | Kitagawa, T. (2015). A Test for Instrument Validity. *Econometrica* 83(5): 2043-2063.                                                     | [10.3982/ECTA11974](https://doi.org/10.3982/ECTA11974)                         |
-| [`iv_kitagawa()`](https://charlescoverdale.github.io/ivcheck/reference/iv_kitagawa.md) (multivalued D) | Sun, Z. (2023). Instrument validity for heterogeneous causal effects. *Journal of Econometrics* 237(2): 105523.                           | [10.1016/j.jeconom.2023.105523](https://doi.org/10.1016/j.jeconom.2023.105523) |
-| [`iv_mw()`](https://charlescoverdale.github.io/ivcheck/reference/iv_mw.md)                             | Mourifie, I. and Wan, Y. (2017). Testing Local Average Treatment Effect Assumptions. *Review of Economics and Statistics* 99(2): 305-313. | [10.1162/REST_a_00622](https://doi.org/10.1162/REST_a_00622)                   |
-| [`iv_testjfe()`](https://charlescoverdale.github.io/ivcheck/reference/iv_testjfe.md)                   | Frandsen, B. R., Lefgren, L. J., Leslie, E. C. (2023). Judging Judge Fixed Effects. *American Economic Review* 113(1): 253-277.           | [10.1257/aer.20201860](https://doi.org/10.1257/aer.20201860)                   |
+| Function | Reference | DOI |
+|----|----|----|
+| [`iv_kitagawa()`](https://charlescoverdale.github.io/ivcheck/reference/iv_kitagawa.md) | Kitagawa, T. (2015). A Test for Instrument Validity. *Econometrica* 83(5): 2043-2063. | [10.3982/ECTA11974](https://doi.org/10.3982/ECTA11974) |
+| [`iv_kitagawa()`](https://charlescoverdale.github.io/ivcheck/reference/iv_kitagawa.md) (multivalued D) | Sun, Z. (2023). Instrument validity for heterogeneous causal effects. *Journal of Econometrics* 237(2): 105523. | [10.1016/j.jeconom.2023.105523](https://doi.org/10.1016/j.jeconom.2023.105523) |
+| [`iv_mw()`](https://charlescoverdale.github.io/ivcheck/reference/iv_mw.md) | Mourifie, I. and Wan, Y. (2017). Testing Local Average Treatment Effect Assumptions. *Review of Economics and Statistics* 99(2): 305-313. | [10.1162/REST_a_00622](https://doi.org/10.1162/REST_a_00622) |
+| [`iv_testjfe()`](https://charlescoverdale.github.io/ivcheck/reference/iv_testjfe.md) | Frandsen, B. R., Lefgren, L. J., Leslie, E. C. (2023). Judging Judge Fixed Effects. *American Economic Review* 113(1): 253-277. | [10.1257/aer.20201860](https://doi.org/10.1257/aer.20201860) |
 
 ### Foundational and methodological references
 

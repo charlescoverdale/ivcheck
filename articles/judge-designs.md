@@ -25,6 +25,7 @@ runs this test.
 ## Setup
 
 ``` r
+
 library(ivcheck)
 ```
 
@@ -35,6 +36,7 @@ Simulate 20 judges with heterogeneous leniency. Under the valid-IV null,
 effect on `D`.
 
 ``` r
+
 set.seed(1)
 K <- 20
 n <- 3000
@@ -61,6 +63,7 @@ Now suppose judge identity affects `Y` directly, beyond its effect on
 `D`. This is an exclusion violation.
 
 ``` r
+
 set.seed(2)
 # Same first stage, but Y now depends on judge identity non-linearly
 y_viol <- rnorm(n, mean = d + 1.5 * sin(judge * 0.5))
@@ -109,6 +112,7 @@ residual, which is often a useful lead for investigating where the
 violation originates:
 
 ``` r
+
 r_viol$binding
 #> $judge
 #> [1] 10
@@ -126,6 +130,7 @@ r_viol$binding
 For a fuller picture, plot `mu_j` against `p_j` with the fitted line:
 
 ``` r
+
 judges <- sort(unique(judge))
 n_j <- sapply(judges, function(j) sum(judge == j))
 p_j <- sapply(judges, function(j) mean(d[judge == j]))
@@ -146,6 +151,7 @@ abline(lm(mu_j_viol ~ p_j, weights = n_j), col = "red")
 ![](figures/judge-designs-unnamed-chunk-6-1.png)
 
 ``` r
+
 par(oldpar)
 ```
 
@@ -160,6 +166,7 @@ chance), pass them via `x`. The function residualises `y` and `d` on `x`
 before computing the per-judge means:
 
 ``` r
+
 set.seed(1)
 K <- 15
 n <- 2000

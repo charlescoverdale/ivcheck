@@ -16,6 +16,7 @@ published falsification test.
 ## Setup
 
 ``` r
+
 library(ivcheck)
 library(fixest)
 ```
@@ -28,6 +29,7 @@ four-year college as an instrument for completed schooling. The bundled
 Survey of Young Men.
 
 ``` r
+
 data(card1995)
 head(card1995[, c("lwage", "educ", "college", "near_college",
                   "age", "black", "south")])
@@ -47,6 +49,7 @@ require a binary treatment.
 ## Fit the IV regression
 
 ``` r
+
 m <- feols(
   lwage ~ age + black + south | college ~ near_college,
   data = card1995
@@ -81,6 +84,7 @@ the neighbourhood of existing applied estimates.
 ## Run every applicable IV-validity test
 
 ``` r
+
 chk <- iv_check(m, n_boot = 500, parallel = FALSE)
 print(chk)
 #> 
@@ -102,6 +106,7 @@ If you want to run a single test rather than the full suite, each
 function dispatches on `fixest` objects too:
 
 ``` r
+
 iv_kitagawa(m, n_boot = 300, parallel = FALSE)
 #> 
 #> ── Kitagawa (2015) ─────────────────────────────────────────────────────────────
@@ -116,6 +121,7 @@ the first stage) and runs the test. You never touch the raw vectors.
 ## Inspecting the bootstrap distribution
 
 ``` r
+
 k <- iv_kitagawa(m, n_boot = 500, parallel = FALSE)
 hist(k$boot_stats, breaks = 40,
      main = "Kitagawa bootstrap distribution (Card 1995)",
@@ -137,6 +143,7 @@ registered on package load. This lets you put a validity p-value
 directly in a regression table footer:
 
 ``` r
+
 library(modelsummary)
 modelsummary(
   list("IV estimate" = m),
@@ -151,6 +158,7 @@ modelsummary(
 In your paper’s replication code:
 
 ``` r
+
 library(fixest)
 library(ivcheck)
 

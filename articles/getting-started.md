@@ -29,6 +29,7 @@ for the judge case.
 ## A first call
 
 ``` r
+
 library(ivcheck)
 
 set.seed(1)
@@ -53,6 +54,7 @@ construction. The test does not reject.
 ## Anatomy of the returned object
 
 ``` r
+
 str(result, max.level = 1)
 #> List of 14
 #>  $ test              : chr "Kitagawa (2015)"
@@ -92,6 +94,7 @@ conclusions at a different significance level without rerunning the
 simulation:
 
 ``` r
+
 quantile(result$boot_stats, c(0.9, 0.95, 0.99))
 #>      90%      95%      99% 
 #> 3.176349 3.414021 3.821969
@@ -104,6 +107,7 @@ treatment, violates the exclusion restriction. Under a moderately strong
 violation the Kitagawa statistic starts to grow and the p-value drops.
 
 ``` r
+
 set.seed(2)
 n <- 1500
 z <- sample(0:1, n, replace = TRUE)
@@ -123,6 +127,7 @@ print(result_v)
 The binding configuration tells you where the violation is largest:
 
 ``` r
+
 result_v$binding
 #> $z_low
 #> [1] 0
@@ -153,6 +158,7 @@ covariates, `iv_kitagawa` is misspecified. Use
 with the `x` argument:
 
 ``` r
+
 set.seed(3)
 n <- 800
 x <- rnorm(n)
@@ -180,6 +186,7 @@ Chernozhukov-Lee-Rosen (2013) inference.
 ## Running all applicable tests at once
 
 ``` r
+
 set.seed(1)
 n <- 600
 z <- sample(0:1, n, replace = TRUE)
