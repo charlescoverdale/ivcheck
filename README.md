@@ -38,15 +38,16 @@ devtools::install_github("charlescoverdale/ivcheck")
 library(fixest)
 library(ivcheck)
 
-m <- feols(lwage ~ controls | educ ~ near_college, data = card1995)
-iv_check(m)
+data(card1995)
+m <- feols(lwage ~ 1 | college ~ near_college, data = card1995)
+iv_check(m, n_boot = 500)
 #> IV validity diagnostic
-#>   Kitagawa (2015):     stat = 0.01, p = 1.00, pass
-#>   Mourifie-Wan (2017): stat = 0.65, p = 0.99, pass
-#> Overall: cannot reject IV validity at 0.05.
+#>   Kitagawa (2015):     stat = 5.25, p = 0.00, reject
+#>   Mourifie-Wan (2017): stat = 5.25, p = 0.00, reject
+#> Overall: at least one test rejects IV validity at 0.05.
 ```
 
-Two added lines, a falsification test the referee is almost guaranteed to ask about, citation-ready output.
+Two added lines, a falsification test the referee is almost guaranteed to ask about, citation-ready output. The unconditional rejection above is the *correct* reading: Card's IV is plausible only conditional on demographic controls. Add a control and the conditional Mourifie-Wan test passes (see the end-to-end example below).
 
 ## Walkthrough
 
@@ -109,7 +110,7 @@ m  <- feols(y ~ x | d ~ z, data = df)
 iv_check(m, n_boot = 500)
 ```
 
-`iv_check()` detects which tests are applicable from the model structure (binary versus multivalued D, discrete versus judge-style Z, presence of covariates) and runs all of them. Works identically on `ivreg::ivreg()` objects.
+`iv_check()` detects which tests are applicable from the model structure (binary versus multivalued D, discrete versus judge-style Z, presence and dimensionality of exogenous controls) and runs only the applicable ones. `iv_kitagawa()` is the unconditional test, so it is skipped when the model carries any exogenous control; `iv_mw()` is the conditional test and runs with up to one covariate via the Chernozhukov-Lee-Rosen series-regression path (multivariate planned for v0.2.0). Works identically on `ivreg::ivreg()` objects.
 
 ### Power planning
 
@@ -121,26 +122,37 @@ Simulates data under a parametric exclusion violation and reports rejection prob
 
 ## Example: end-to-end with Card (1995)
 
+The unconditional test rejects; the conditional one does not. That contrast is the right reading of Card's design.
+
 ```r
 library(ivcheck)
 library(fixest)
 
 data(card1995)   # bundled
-m <- feols(
-  lwage ~ age + married + black + south | college ~ near_college,
-  data = card1995
-)
 
-iv_check(m, n_boot = 1000)
+# Unconditional: Kitagawa and Mourifie-Wan both reject.
+m_uncond <- feols(lwage ~ 1 | college ~ near_college, data = card1995)
+iv_check(m_uncond, n_boot = 500)
 #> IV validity diagnostic
-#>   Kitagawa (2015):     stat = 7.98, p = 0.00, reject
-#>   Mourifie-Wan (2017): stat = 7.98, p = 0.00, reject
+#>   Kitagawa (2015):     stat = 5.25, p = 0.00, reject
+#>   Mourifie-Wan (2017): stat = 5.25, p = 0.00, reject
 #> Overall: at least one test rejects IV validity at 0.05.
+
+# Conditional on age: the conditional Mourifie-Wan test does not reject.
+m_cond <- feols(lwage ~ age | college ~ near_college, data = card1995)
+iv_check(m_cond, n_boot = 200)
+#> i Kitagawa test skipped: fitted model has exogenous controls and
+#>   iv_kitagawa() is unconditional.
+#> i The conditional Mourifie-Wan test is the right object here.
+#>
+#> IV validity diagnostic
+#>   Mourifie-Wan (2017): stat = 79.5, p = 0.71, pass
+#> Overall: cannot reject IV validity at 0.05.
 ```
 
-The interval-sup Kitagawa test rejects on this binary-discretised `college` treatment. The binding violation sits in the upper lwage interval [6.25, 7.78], where college-graduates living away from a college have more mass than the test's implied bound admits. Monte Carlo on a Card-shaped DGP with Gaussian outcome produces empirical size of 1.25% at nominal 5%, so the rejection is not a size artifact: it reflects a genuine feature of Card's empirical outcome distribution conditional on college and proximity.
+Card's identification strategy is "proximity-to-college is plausible only conditional on demographic controls". The unconditional test catches this and refuses to validate the IV. Once a single demographic control (`age`) is included, the conditional Mourifie-Wan test reads the design as compatible with LATE-validity at the 5% level. Multivariate controls (Card's canonical specification uses age plus race and region) are planned for v0.2.0 via a tensor-product series basis; in v0.1.2 the workaround is to reduce additional controls to a single propensity index.
 
-This is not a rejection of Card's original IV, which targets continuous years of schooling. The binary `educ >= 16` threshold creates mixed complier subpopulations whose testable implications bite differently than the continuous-treatment case. Users running the test on their own binary-IV designs should inspect `result$binding` to see which outcome interval carries the violation, and consider whether the discretisation itself is driving the finding.
+This is a test of the binary `college = (educ >= 16)` discretisation, not Card's original continuous-schooling IV. Inspect `result$binding` to see which outcome interval carries the violation when a rejection occurs.
 
 ## Functions
 
@@ -156,11 +168,11 @@ This is not a rejection of Card's original IV, which targets continuous years of
 
 Read before using in published work.
 
-### Scope (v0.1.0 does not cover)
+### Scope
 
 - **Continuous instruments.** All three tests require a discrete `Z`. For continuous instruments, discretise into quantile bins (quartiles or quintiles) before passing to `iv_kitagawa` or `iv_mw`. A formal nonparametric continuous-`Z` extension is on the v0.2.0 roadmap.
 - **Fuzzy regression discontinuity.** FRD has its own testable implications at the cutoff (Arai, Hsu, Kitagawa, Mourifie, and Wan 2022). Handling them requires different infrastructure (running variable, bandwidth selection, bias correction) that does not fit the current fitted-IV-model spine; a dedicated `iv_frd()` function is planned for v0.2.0.
-- **`iv_mw` with covariates under weights.** The `weights` argument is fully implemented for `iv_kitagawa`, `iv_testjfe`, and the no-covariate path of `iv_mw`. The CLR series-regression path for `iv_mw` with covariates does not yet propagate weights; planned for v0.1.1.
+- **`iv_mw` with covariates under weights.** The `weights` argument is fully implemented for `iv_kitagawa`, `iv_testjfe`, and the no-covariate path of `iv_mw`. The CLR series-regression path for `iv_mw` with covariates does not yet propagate weights; planned for v0.2.1.
 - **Fixed-effects IV models.** `iv_kitagawa`, `iv_mw`, and `iv_testjfe` dispatched on a `fixest` model with `| FE |` aborts with a clear error. The discrete-Z tests operate on the raw (Y, D, Z) joint distribution; within-FE residualisation destroys the discrete structure of Z. Workaround: pre-demean Y and D inside each FE cell and pass as raw vectors to the default method. A proper stratified-by-FE variant is on the v0.2.0 roadmap.
 - **Multivariate conditioning in `iv_mw`.** The conditional path supports a single covariate. A tensor-product basis for multivariate `x` is planned for v0.2.0. Multivariate `x` aborts rather than silently dropping additional columns.
 - **Sun (2023) unordered multivalued D.** Supported via `treatment_order = "unordered"` plus a user-supplied `monotonicity_set` (a data frame with columns `d`, `z_from`, `z_to` encoding the direction of the monotonicity restriction per Sun's Assumption 2.4(iii)). See `?iv_kitagawa` for an example.
@@ -177,7 +189,7 @@ Read before using in published work.
 ### Interpretation
 
 - **Non-rejection is not proof of validity.** The tests have power against violations in the observable conditional distributions but are silent on violations that cancel out across subgroups.
-- **Kitagawa vs Mourifie-Wan with covariates.** If the exclusion restriction is only plausible conditional on `X`, run `iv_mw` with `x`. Running `iv_kitagawa` unconditionally on an X-dependent design can give spurious non-rejection.
+- **Kitagawa vs Mourifie-Wan with covariates.** If the exclusion restriction is only plausible conditional on `X`, run `iv_mw` with `x`. `iv_kitagawa()` is strictly the unconditional test: dispatched on a fitted model with exogenous controls, it errors with a pointer to `iv_mw()`, rather than silently dropping the controls (which earlier versions did and which produced misleading non-rejections; fixed in v0.1.2).
 - **Many-instrument / judge regimes.** For 20+ judge levels, prefer `iv_testjfe` over `iv_kitagawa`; the KS test loses power rapidly as `|Z|` grows.
 - **Bootstrap size.** `n_boot = 1000` (default) is fine for publication-grade p-values. Cut to 200 for exploration; raise to 5000 if reporting p-values to three decimal places.
 - **The `se_floor` trimming constant (Kitagawa's `\xi`) has a material impact on finite-sample size.** The default is 0.15, raised from the paper's informally-recommended 0.05-0.1 range after Monte Carlo showed that smaller floors produce anti-conservative size under skewed Z-cell distributions with weak first stages. At 0.15 empirical size is at or below nominal 5% in all 24 Monte Carlo configurations tested. Users reproducing Kitagawa's published examples can set `se_floor = 0.1`.

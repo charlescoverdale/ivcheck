@@ -70,7 +70,7 @@ Each test function is an S3 generic with methods for `fixest`, `ivreg`, and the 
 
 ### The `iv_check` wrapper
 
-`iv_check` inspects the model structure, detects which tests are applicable (binary versus discrete treatment, number of instrument levels, presence of covariates), and runs them. The return is an `iv_check` object containing a tidy table with one row per test (name, statistic, p-value, verdict) plus an overall verdict string. When a user requests a specific test that is not applicable, `iv_check` warns and skips rather than silently dropping the request.
+`iv_check` inspects the model structure, detects which tests are applicable (binary versus discrete treatment, number of instrument levels, presence and dimensionality of exogenous controls), and runs only the applicable ones. The return is an `iv_check` object containing a tidy table with one row per test (name, statistic, p-value, verdict) plus an overall verdict string. When a user requests a specific test that is not applicable, `iv_check` warns and skips rather than silently dropping the request. In particular, `iv_kitagawa` is strictly the unconditional Kitagawa (2015) test and is dropped from the applicable list whenever the fitted model carries any exogenous control; `iv_mw` is the conditional test and supports up to one covariate in the current version (multivariate via tensor-product series basis is planned for v0.2.0).
 
 ### Bootstrap machinery
 
@@ -148,21 +148,30 @@ The returned object includes the `K x K` matrix `pairwise_late` of pairwise Wald
 
 ## Case study: Card (1995) proximity to a four-year college
 
-The Card [-@card1995] IV estimate of the return to schooling is the canonical applied IV illustration. Report, on the same data, both the IV estimate and the \CRANpkg{ivcheck} falsification tests:
+The Card [-@card1995] IV estimate of the return to schooling is the canonical applied IV illustration. The unconditional Kitagawa / Mourifie-Wan tests reject the binary discretisation of Card's continuous schooling variable; once a single demographic control is included, the conditional Mourifie-Wan test does not reject. The contrast is the right reading of Card's design: proximity-to-college is a plausible instrument only conditional on demographic and regional controls.
 
 ```{r, eval = FALSE}
 library(fixest)
 library(ivcheck)
 
 data(card1995)
-m <- feols(
-  lwage ~ age + married + black + south | college ~ near_college,
-  data = card1995
-)
-iv_check(m, n_boot = 1000)
+
+# Unconditional: both tests reject.
+m_uncond <- feols(lwage ~ 1 | college ~ near_college, data = card1995)
+iv_check(m_uncond, n_boot = 500)
+#> Kitagawa (2015):     stat = 5.25, p = 0.00, reject
+#> Mourifie-Wan (2017): stat = 5.25, p = 0.00, reject
+
+# Conditional on age: conditional Mourifie-Wan does not reject.
+m_cond <- feols(lwage ~ age | college ~ near_college, data = card1995)
+iv_check(m_cond, n_boot = 200)
+#> i Kitagawa skipped (model has controls; iv_kitagawa is unconditional).
+#> Mourifie-Wan (2017): stat = 79.5, p = 0.71, pass
 ```
 
-The wrapper detects that `college` is binary and `near_college` is a binary instrument, runs Kitagawa and Mourifie-Wan, and returns the tidy diagnostic table. The Kitagawa interval-sup statistic rejects at the 5\% level on this binary discretisation of Card's continuous schooling variable: a finding about the binary form of the IV question, not the original continuous-D one. Users running the test on their own binary-IV designs should inspect the `binding` element of the result to see which outcome interval carries the violation, and consider whether the discretisation itself is driving the finding.
+The wrapper detects that `college` is binary and `near_college` is a binary instrument. In the unconditional specification it runs both Kitagawa and Mourifie-Wan (which coincide without covariates) and reports rejection. In the conditional specification it drops Kitagawa from the applicable list (with an informational message) and runs the conditional Mourifie-Wan test alone; the conditional CLR series-regression form does not reject. The two readings are not in conflict: the unconditional test catches a violation that is removed once age is conditioned on. Card's canonical specification uses additional controls (race, region); multivariate conditioning via tensor-product series basis is on the v0.2.0 roadmap, and the v0.1.2 workaround is dimension reduction to a single propensity index.
+
+Users running the test on their own binary-IV designs should inspect the `binding` element of the result to see which outcome interval carries the violation, and consider whether the binary discretisation itself is driving the finding. This is a test of the binary `educ >= 16` threshold, not Card's original continuous-D IV.
 
 ## Monte Carlo validation
 
@@ -246,15 +255,16 @@ Figure \ref{fig:pairwise} shows the pairwise Wald LATE matrix for the violation 
 
 ## Limitations
 
-Seven limitations apply.
+Eight limitations apply.
 
 1. \CRANpkg{ivcheck} is a testing package, not an estimator. Use \CRANpkg{fixest} or \CRANpkg{ivreg} for the IV estimation itself; \CRANpkg{ivcheck} operates on the fitted model or on raw vectors.
-2. Version 0.1.0 supports discrete instruments only. Continuous `Z` must be discretised into bins (quartiles or quintiles) before passing to `iv_kitagawa` or `iv_mw`, at modest cost in power. A nonparametric continuous-`Z` extension is on the v0.2.0 roadmap.
+2. The current version supports discrete instruments only. Continuous `Z` must be discretised into bins (quartiles or quintiles) before passing to `iv_kitagawa` or `iv_mw`, at modest cost in power. A nonparametric continuous-`Z` extension is on the v0.2.0 roadmap.
 3. Fuzzy regression discontinuity has a dedicated test [@arai2022] that is not yet in \CRANpkg{ivcheck}. Its different infrastructure (running variable, cutoff, local-polynomial bandwidth, bias correction) does not fit the current spine of S3 dispatch on fitted IV models, so a dedicated `iv_frd()` function is deferred to v0.2.0.
 4. `iv_testjfe` implements the asymptotic chi-squared linearity test that corresponds to the @frandsen2023 statistic under a linear outcome-propensity specification. The full flexible-series test with the bounded-slope moment-inequality restriction is planned for v0.2.0. Users needing the published test with the flexible basis should run Frandsen's Stata `testjfe` module in the interim.
-5. Fixed-effects IV models are not supported in v0.1.0. Calling `iv_kitagawa`, `iv_mw`, or `iv_testjfe` on a `fixest` model with the `| FE |` component aborts with a clear error. The discrete-Z tests operate on the raw `(Y, D, Z)` joint distribution, and residualising on fixed effects destroys the discrete structure of `Z`. The documented workaround is to pre-demean `Y` and `D` within each FE cell, keep `Z` discrete, and call the default method on the resulting vectors. A stratified-by-FE variant is on the v0.2.0 roadmap.
-6. The conditional path of `iv_mw` supports a single covariate. Users passing a matrix of covariates receive a clear error pointing to the tensor-product-basis extension planned for v0.2.0. The current recommendation is to condition on the covariate most plausibly driving heterogeneity in compliance.
-7. Rejection of any of the three tests is evidence of violation but does not localise the failed assumption. Non-rejection is evidence of no detectable violation at level `alpha`, not proof of validity. Report non-rejection as such.
+5. Fixed-effects IV models are not yet supported. Calling `iv_kitagawa`, `iv_mw`, or `iv_testjfe` on a `fixest` model with the `| FE |` component aborts with a clear error. The discrete-Z tests operate on the raw `(Y, D, Z)` joint distribution, and residualising on fixed effects destroys the discrete structure of `Z`. For judge-style FE designs the right tool is `iv_testjfe` directly (the FE *are* the instrument variation); for non-judge FE the documented workaround is to pre-demean `Y` and `D` within each FE cell, keep `Z` discrete, and call the default method on the resulting vectors.
+6. `iv_kitagawa` is strictly the unconditional Kitagawa (2015) test. Dispatched on a fitted `fixest` or `ivreg` model that carries exogenous controls, it errors with a pointer to `iv_mw` for the conditional Mourifie-Wan (2017) test, rather than silently dropping the controls. Users wanting the unconditional test on data that happen to come from a controlled regression should call `iv_kitagawa` on raw `(y, d, z)` vectors.
+7. The conditional path of `iv_mw` supports a single covariate. Users passing a matrix of multiple covariates receive a clear error pointing to the tensor-product-basis extension planned for v0.2.0. The current recommendation is to condition on the covariate most plausibly driving heterogeneity in compliance, or to reduce a multivariate `X` to a single propensity index.
+8. Rejection of any of the three tests is evidence of violation but does not localise the failed assumption. Non-rejection is evidence of no detectable violation at level `alpha`, not proof of validity. Report non-rejection as such.
 
 ### Notes on fidelity
 

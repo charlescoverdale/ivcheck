@@ -1,50 +1,51 @@
-# CRAN submission comments - ivcheck 0.1.0
+# CRAN submission comments - ivcheck 0.1.2
 
-## New submission
+## Summary
 
-This is a new package providing tests for the identifying assumptions of
-instrumental variable models (the local exclusion restriction and
-monotonicity conditions required for LATE identification). The package
-implements Kitagawa (2015, Econometrica), Mourifie and Wan (2017, Review
-of Economics and Statistics), and Frandsen, Lefgren, and Leslie (2023,
-American Economic Review), plus a one-shot wrapper that runs every
-applicable test on a fitted IV model.
+This is a bug-fix release. `iv_kitagawa()` dispatched on a fitted
+`fixest` or `ivreg` model with exogenous controls used to silently
+drop the controls and return the unconditional test, which is wrong
+when validity is only conditional on the controls. The fitted-model
+methods now error with a pointer to `iv_mw()` for the conditional
+Mourifie-Wan (2017) test, or to the raw-vector default method to
+force an unconditional test on the same data. The `iv_check()`
+wrapper now filters its applicable-tests list to reflect this and
+emits informational messages explaining any drops.
+
+This is a behaviour change in the fitted-model dispatch path. Users
+who relied on the prior (silently incorrect) behaviour can recover an
+unconditional test by passing raw `(y, d, z)` vectors to
+`iv_kitagawa()` directly.
 
 ## R CMD check results
 
-Local `R CMD check --as-cran`: 0 errors, 0 warnings, 1 NOTE.
+Local `R CMD check --as-cran` (R 4.5.0 on macOS, Darwin 25.4.0):
+0 errors, 0 warnings, 2 NOTEs.
 
-The single NOTE ("unable to verify current time") is an environmental
-issue on the author's machine and does not reproduce on CRAN
-infrastructure.
+The two NOTEs are environmental and do not reproduce on CRAN
+infrastructure:
+
+1. "unable to verify current time": clock-skew note on the author's
+   machine.
+2. "Non-standard files/directories found at top level":
+   `_pkgdown.yml` (pkgdown site config), `llms.txt` and
+   `llms-full.txt` (LLM-readable package summaries). These files
+   shipped in v0.1.0 and v0.1.1 without comment from previous CRAN
+   reviewers.
 
 ## Test suite
 
-110+ testthat expectations covering structure, invariants, known-value
-cases, edge cases, published-number reproduction (Card 1995), and
-end-to-end S3 dispatch against `fixest` and `ivreg` IV models. All tests
-run offline; no network-dependent tests.
+All 277 testthat expectations pass, including 15 new tests for the
+v0.1.2 behaviour change in `tests/testthat/test-controls-handling.R`.
 
-## Notes for the reviewer
+## Reverse dependencies
 
-- All DOIs in DESCRIPTION and `@references` have been verified against
-  the CrossRef API (`https://api.crossref.org/works/<doi>` returns 200
-  for every DOI used).
-- Any doi.org links in README.md that `urlchecker::url_check()` flags
-  as 403 are a known publisher-side bot-block false positive (AEA and
-  MIT Press routinely 403 automated HEAD requests). The CrossRef
-  verification confirms the DOIs resolve.
-- Package uses `parallel::mclapply` for the multiplier bootstrap with
-  an explicit cap at 2 cores when `_R_CHECK_LIMIT_CORES_` is set, per
-  CRAN parallel-computing policy.
-- No data is downloaded at runtime. A bundled `card1995` dataset (3,003
-  rows, cleaned extract of Card 1995 National Longitudinal Survey of
-  Young Men data) is included under `data/` via `usethis::use_data()`
-  with xz compression. Provenance documented in `data-raw/`.
-- S3 dispatch for `fixest` and `ivreg` uses `.onLoad` to conditionally
-  register methods; no hard dependency on either package. Both are
-  Suggests.
+`tools::package_dependencies("ivcheck", reverse = TRUE)` returns
+zero packages. No downstream effects.
 
-## Downstream dependencies
+## Vignettes
 
-None. This is a new package.
+`vignette("with-fixest")` has been rewritten to demonstrate the new
+behaviour: the unconditional case (no controls), the single-control
+conditional path through `iv_mw()`, and the workaround for
+multivariate controls (propensity-index dimension reduction).

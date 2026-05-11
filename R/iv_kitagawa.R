@@ -208,6 +208,7 @@ iv_kitagawa.fixest <- function(object, n_boot = 1000, alpha = 0.05,
   treatment_order <- match.arg(treatment_order)
   multiplier <- match.arg(multiplier)
   yz <- extract_iv_data(object)
+  abort_if_controls_present(yz$x)
   iv_kitagawa.default(
     object = yz$y, d = yz$d, z = yz$z,
     n_boot = n_boot, alpha = alpha, weighting = weighting,
@@ -232,6 +233,7 @@ iv_kitagawa.ivreg <- function(object, n_boot = 1000, alpha = 0.05,
   treatment_order <- match.arg(treatment_order)
   multiplier <- match.arg(multiplier)
   yz <- extract_iv_data(object)
+  abort_if_controls_present(yz$x)
   iv_kitagawa.default(
     object = yz$y, d = yz$d, z = yz$z,
     n_boot = n_boot, alpha = alpha, weighting = weighting,
@@ -240,4 +242,27 @@ iv_kitagawa.ivreg <- function(object, n_boot = 1000, alpha = 0.05,
     monotonicity_set = monotonicity_set,
     multiplier = multiplier, ...
   )
+}
+
+# Internal helper. Aborts when a fitted-model iv_kitagawa dispatch is handed
+# a model with exogenous controls, on the basis that iv_kitagawa is
+# strictly the unconditional Kitagawa (2015) test and silently dropping X
+# would produce the wrong inference when validity is only conditional on X.
+abort_if_controls_present <- function(x) {
+  if (is.null(x)) return(invisible(NULL))
+  n_controls <- if (is.matrix(x)) ncol(x) else 1L
+  control_names <- if (is.matrix(x)) colnames(x) else NULL
+  detail <- if (!is.null(control_names) && length(control_names) > 0L) {
+    sprintf("Your fitted model has %d exogenous control(s): %s.",
+            n_controls,
+            paste(shQuote(control_names), collapse = ", "))
+  } else {
+    sprintf("Your fitted model has %d exogenous control(s).", n_controls)
+  }
+  cli::cli_abort(c(
+    "{.fn iv_kitagawa} is the unconditional Kitagawa (2015) test; it does not condition on controls.",
+    x = detail,
+    i = "Use {.fn iv_mw} on the same model for the conditional Mourifie-Wan (2017) test.",
+    i = "To force the unconditional test on these data, call {.fn iv_kitagawa} on raw {.var (y, d, z)} vectors."
+  ))
 }

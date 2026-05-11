@@ -11,6 +11,7 @@ Implements tests for the identifying assumptions of instrumental variable models
 \seealso{
 Useful links:
 \itemize{
+  \item \url{https://charlescoverdale.github.io/ivcheck/}
   \item \url{https://github.com/charlescoverdale/ivcheck}
   \item Report bugs at \url{https://github.com/charlescoverdale/ivcheck/issues}
 }
