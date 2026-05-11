@@ -400,9 +400,9 @@ Read before using in published work.
   bug: Mourifie-Wan’s DOI had been cited as `10.1162/REST_a_00628`
   (which resolves to a different paper entirely). The correct DOI is
   `_00622`. Fixed before first submission.
-- **`R CMD check --as-cran`**: 0 errors, 0 warnings, 0 notes. 97 unit
-  tests covering structure, invariants, known-value cases, edge cases,
-  and end-to-end S3 dispatch against `fixest` and `ivreg` fitted models.
+- **`R CMD check --as-cran`**: 0 errors, 0 warnings. Test suite covers
+  structure, invariants, known-value cases, edge cases, and end-to-end
+  S3 dispatch against `fixest` and `ivreg` fitted models.
 
 ## Planned for future versions
 
