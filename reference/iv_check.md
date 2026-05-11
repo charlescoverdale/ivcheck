@@ -76,7 +76,7 @@ if (requireNamespace("fixest", quietly = TRUE)) {
 #> ℹ The conditional Mourifie-Wan test is the right object here.
 #> 
 #> ── IV validity diagnostic ──────────────────────────────────────────────────────
-#> Mourifie-Wan (2017): stat = "42.4", p = "0.48", pass
+#> Mourifie-Wan (2017): stat = "42.4", p = "0.475", pass
 #> Overall: cannot reject IV validity at 0.05.
 # }
 ```
