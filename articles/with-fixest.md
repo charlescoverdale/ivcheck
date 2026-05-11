@@ -46,46 +46,40 @@ Two variants are included: the continuous `educ` (years of schooling)
 and a binary `college` indicator (`educ >= 16`) for use with tests that
 require a binary treatment.
 
-## Fit the IV regression
+## The unconditional case: no exogenous controls
+
+We start with the simplest specification: no exogenous controls in the
+structural equation. This is the case
+[`iv_kitagawa()`](https://charlescoverdale.github.io/ivcheck/reference/iv_kitagawa.md)
+is designed for.
 
 ``` r
 
-m <- feols(
-  lwage ~ age + black + south | college ~ near_college,
+m_uncond <- feols(
+  lwage ~ 1 | college ~ near_college,
   data = card1995
 )
-summary(m)
-#> TSLS estimation
+summary(m_uncond)
+#> TSLS estimation: Second stage
 #> |- D.V.   : lwage
 #> |- Endo.  : college
 #> |- Instr. : near_college
-#> |
-#> |=> Second Stage
-#> |   Dep. Var.: lwage
+#> Dep. Var.: lwage
 #> Observations: 3,003
 #> Standard-errors: IID 
-#>              Estimate Std. Error   t value   Pr(>|t|)    
-#> (Intercept)  4.941675   0.201548 24.518545  < 2.2e-16 ***
-#> fit_college  1.899996   0.722022  2.631492 8.5446e-03 ** 
-#> age          0.029114   0.006036  4.823564 1.4805e-06 ***
-#> black        0.113946   0.137925  0.826142 4.0879e-01    
-#> south       -0.101832   0.045242 -2.250843 2.4468e-02 *  
+#>             Estimate Std. Error  t value   Pr(>|t|)    
+#> (Intercept)  5.65161   0.155590 36.32367  < 2.2e-16 ***
+#> fit_college  2.24687   0.568671  3.95109 7.9588e-05 ***
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-#> RMSE: 0.853163   Adj. R2: 0.208408
-#> F-test (1st stage), college: stat =  7.3643, p = 0.006691, on 1 and 2,998 DoF.
-#>                  Wu-Hausman: stat = 28.0617, p = 1.26e-7 , on 1 and 2,997 DoF.
+#> RMSE: 0.996225   Adj. R2: 0.02591
+#> F-test (1st stage), college: stat = 15.589, p = 8.052e-5, on 1 and 3,001 DoF.
+#>                  Wu-Hausman: stat = 68.919, p < 2.2e-16 , on 1 and 3,000 DoF.
 ```
-
-The endogenous variable `college` is instrumented by `near_college`. The
-first-stage F is strong. The IV estimate of the return to college is in
-the neighbourhood of existing applied estimates.
-
-## Run every applicable IV-validity test
 
 ``` r
 
-chk <- iv_check(m, n_boot = 500, parallel = FALSE)
+chk <- iv_check(m_uncond, n_boot = 500, parallel = FALSE)
 print(chk)
 #> 
 #> ── IV validity diagnostic ──────────────────────────────────────────────────────
@@ -97,42 +91,141 @@ print(chk)
 [`iv_check()`](https://charlescoverdale.github.io/ivcheck/reference/iv_check.md)
 inspects the model, detects that `college` is binary and `near_college`
 is a discrete instrument, and runs Kitagawa (2015) and Mourifie-Wan
-(2017). Neither test rejects; the IV passes. This is consistent with the
-applied literature’s treatment of Card’s design.
+(2017). With no covariates the two are numerically identical
+(Mourifie-Wan reduces exactly to the variance-weighted Kitagawa test,
+unit-tested).
 
-## Dispatching directly on the model
-
-If you want to run a single test rather than the full suite, each
-function dispatches on `fixest` objects too:
+### Bootstrap distribution
 
 ``` r
 
-iv_kitagawa(m, n_boot = 300, parallel = FALSE)
-#> 
-#> ── Kitagawa (2015) ─────────────────────────────────────────────────────────────
-#> Sample size: 3003
-#> Statistic: "5.25", p-value: "0"
-#> Verdict: reject IV validity at 0.05
-```
-
-The function extracts `y`, `d`, and `z` from the fitted model (including
-the first stage) and runs the test. You never touch the raw vectors.
-
-## Inspecting the bootstrap distribution
-
-``` r
-
-k <- iv_kitagawa(m, n_boot = 500, parallel = FALSE)
+k <- iv_kitagawa(m_uncond, n_boot = 500, parallel = FALSE)
 hist(k$boot_stats, breaks = 40,
-     main = "Kitagawa bootstrap distribution (Card 1995)",
+     main = "Kitagawa bootstrap distribution (Card 1995, no controls)",
      xlab = "sqrt(n) * positive-part KS")
 abline(v = k$statistic, col = "red", lwd = 2)
 ```
 
-![](figures/with-fixest-unnamed-chunk-7-1.png)
+![](figures/with-fixest-unnamed-chunk-6-1.png)
 
-The observed statistic (red line) sits well inside the bootstrap
-distribution, consistent with a non-rejection.
+## The conditional case: one exogenous control
+
+Card’s identification strategy is more naturally read as “valid
+*conditional on* demographic and regional controls”. In that setting the
+right test is Mourifie and Wan’s (2017) conditional version: same
+testable family of inequalities as Kitagawa, but the conditional CDFs
+are estimated by series regression on `X` rather than treated as
+unconditional.
+
+In `ivcheck` v0.1.2, the conditional path supports a single covariate
+(multivariate via tensor-product basis is planned for v0.2.0).
+
+``` r
+
+m_cond <- feols(
+  lwage ~ age | college ~ near_college,
+  data = card1995
+)
+```
+
+[`iv_kitagawa()`](https://charlescoverdale.github.io/ivcheck/reference/iv_kitagawa.md)
+is strictly the unconditional test and refuses fitted models that carry
+controls:
+
+``` r
+
+iv_kitagawa(m_cond, n_boot = 100, parallel = FALSE)
+#> Error in `abort_if_controls_present()`:
+#> ! `iv_kitagawa()` is the unconditional Kitagawa (2015) test; it does not
+#>   condition on controls.
+#> ✖ Your fitted model has 1 exogenous control(s): 'age'.
+#> ℹ Use `iv_mw()` on the same model for the conditional Mourifie-Wan (2017) test.
+#> ℹ To force the unconditional test on these data, call `iv_kitagawa()` on raw
+#>   `(y, d, z)` vectors.
+```
+
+The conditional test is
+[`iv_mw()`](https://charlescoverdale.github.io/ivcheck/reference/iv_mw.md).
+Dispatched on the same fitted model, it picks up the single covariate
+automatically and runs the Chernozhukov-Lee-Rosen series-regression test
+with Andrews-Soares adaptive moment selection:
+
+``` r
+
+mw <- iv_mw(m_cond, n_boot = 200, parallel = FALSE)
+print(mw)
+#> 
+#> ── Mourifie-Wan (2017) ─────────────────────────────────────────────────────────
+#> Sample size: 3003
+#> Statistic: "79.5", p-value: "0.675"
+#> Verdict: cannot reject IV validity at 0.05
+```
+
+[`iv_check()`](https://charlescoverdale.github.io/ivcheck/reference/iv_check.md)
+does the right thing automatically: it detects that the model has
+controls, drops Kitagawa from the applicable list with an informational
+message, and reports MW alone:
+
+``` r
+
+iv_check(m_cond, n_boot = 200, parallel = FALSE)
+#> ℹ Kitagawa test skipped: fitted model has exogenous controls and
+#>   `iv_kitagawa()` is unconditional.
+#> ℹ The conditional Mourifie-Wan test is the right object here.
+#> 
+#> 
+#> ── IV validity diagnostic ──────────────────────────────────────────────────────
+#> 
+#> Mourifie-Wan (2017): stat = "79.5", p = "0.695", pass
+#> 
+#> Overall: cannot reject IV validity at 0.05.
+```
+
+## Multivariate controls
+
+When the structural equation carries more than one exogenous control,
+[`iv_mw()`](https://charlescoverdale.github.io/ivcheck/reference/iv_mw.md)
+in v0.1.2 does not yet support the multivariate conditioning required
+for a valid conditional test. Both Kitagawa and MW are skipped, and
+[`iv_check()`](https://charlescoverdale.github.io/ivcheck/reference/iv_check.md)
+reports back with informational messages:
+
+``` r
+
+m_multi <- feols(
+  lwage ~ age + black + south | college ~ near_college,
+  data = card1995
+)
+iv_check(m_multi, n_boot = 100, parallel = FALSE)
+#> ℹ Kitagawa test skipped: fitted model has exogenous controls and
+#>   `iv_kitagawa()` is unconditional.
+#> ℹ The conditional Mourifie-Wan test is the right object here.
+#> ℹ Mourifie-Wan test skipped: multivariate `X` (>1 control) is not yet supported
+#>   in v0.1.2.
+#> ℹ Planned for v0.2.0 via tensor-product series basis.
+#> ℹ Workaround: reduce `X` to a single propensity index and call `iv_mw()`
+#>   directly.
+#> Error in `iv_check()`:
+#> ! Could not detect an applicable IV-validity test for this model.
+#> ℹ The model does not appear to be an IV model, or the treatment is not binary.
+#> ℹ Supported: `fixest::feols()` with formula `y ~ x | d ~ z` or
+#>   `ivreg::ivreg()`.
+```
+
+Multivariate conditioning via tensor-product series basis is planned for
+v0.2.0. Until then, two workarounds:
+
+1.  **Reduce `X` to a single index.** Fit a propensity score
+    `Pr(D = 1 | X)` or another scalar summary of the controls, then
+    refit the IV model with that index as the single exogenous control
+    and call
+    [`iv_mw()`](https://charlescoverdale.github.io/ivcheck/reference/iv_mw.md)
+    on the result.
+2.  **Stratify and run unconditional tests within strata.** Coarsely bin
+    `X` and call
+    [`iv_kitagawa()`](https://charlescoverdale.github.io/ivcheck/reference/iv_kitagawa.md)
+    on raw vectors within each cell, applying a Bonferroni adjustment
+    across cells.
 
 ## Combining with `modelsummary`
 
@@ -146,9 +239,9 @@ directly in a regression table footer:
 
 library(modelsummary)
 modelsummary(
-  list("IV estimate" = m),
+  list("IV estimate" = m_cond),
   gof_custom = list(
-    "Kitagawa 2015 p-value" = sprintf("%.3f", k$p_value)
+    "Mourifie-Wan 2017 p-value" = sprintf("%.3f", mw$p_value)
   )
 )
 ```
@@ -164,8 +257,8 @@ library(ivcheck)
 
 # ... data loading ...
 
-# IV estimate
-m <- feols(y ~ controls | d ~ z, data = df)
+# IV estimate (conditional on a single control)
+m <- feols(y ~ x | d ~ z, data = df)
 
 # IV validity diagnostic
 chk <- iv_check(m)
@@ -185,3 +278,6 @@ Estimate the Return to Schooling.
 
 Kitagawa, T. (2015). A Test for Instrument Validity. *Econometrica*
 83(5): 2043-2063.
+
+Mourifie, I. and Wan, Y. (2017). Testing Local Average Treatment Effect
+Assumptions. *Review of Economics and Statistics* 99(2): 305-313.

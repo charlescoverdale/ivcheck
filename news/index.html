@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">ivcheck</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -38,6 +38,23 @@
       <small>Source: <a href="https://github.com/charlescoverdale/ivcheck/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.1.2" id="ivcheck-012">ivcheck 0.1.2<a class="anchor" aria-label="anchor" href="#ivcheck-012"></a></h2>
+<div class="section level3">
+<h3 id="bug-fix-behaviour-change-0-1-2">Bug fix (behaviour change)<a class="anchor" aria-label="anchor" href="#bug-fix-behaviour-change-0-1-2"></a></h3>
+<ul><li>
+<code><a href="../reference/iv_kitagawa.html">iv_kitagawa()</a></code> dispatched on a fitted <code>fixest</code> or <code>ivreg</code> model with exogenous controls used to silently drop the controls and return the unconditional test. This was wrong when validity is only conditional on X. The fitted-model methods now error and direct the user to <code><a href="../reference/iv_mw.html">iv_mw()</a></code> for the conditional Mourifie-Wan (2017) test, or to the raw-vector default method to force an unconditional test on the same data.</li>
+<li>
+<code><a href="../reference/iv_check.html">iv_check()</a></code> now filters its applicable-tests list by the presence and dimensionality of exogenous controls. Kitagawa is dropped when any control is present; Mourifie-Wan is dropped when more than one control is present (multivariate X is planned for v0.2.0 via a tensor-product series basis). When a test is dropped, <code><a href="../reference/iv_check.html">iv_check()</a></code> emits an informational message explaining why.</li>
+<li>
+<code><a href="../reference/iv_check.html">iv_check()</a></code> no longer falls back to running Mourifie-Wan unconditionally when handed a model with multivariate controls. That downgrade was the same silent-drop bug as the Kitagawa one.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-0-1-2">Documentation<a class="anchor" aria-label="anchor" href="#documentation-0-1-2"></a></h3>
+<ul><li>
+<code><a href="../articles/with-fixest.html">vignette("with-fixest")</a></code> rewritten to demonstrate the new behaviour: the unconditional case, the single-control conditional path through <code><a href="../reference/iv_mw.html">iv_mw()</a></code>, and the multivariate workaround (propensity-index dimension reduction).</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.1" id="ivcheck-011">ivcheck 0.1.1<a class="anchor" aria-label="anchor" href="#ivcheck-011"></a></h2><p class="text-muted">CRAN release: 2026-04-22</p>
 <p>CRAN resubmission addressing reviewer feedback (Benjamin Altmann, 2026-04-21):</p>

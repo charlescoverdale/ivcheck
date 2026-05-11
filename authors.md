@@ -10,13 +10,13 @@ Source:
 [`inst/CITATION`](https://github.com/charlescoverdale/ivcheck/blob/main/inst/CITATION)
 
 Coverdale C (2026). *ivcheck: Tests for Instrumental Variable Validity*.
-R package version 0.1.0, <https://github.com/charlescoverdale/ivcheck>.
+R package version 0.1.2, <https://github.com/charlescoverdale/ivcheck>.
 
     @Manual{,
       title = {ivcheck: Tests for Instrumental Variable Validity},
       author = {Charles Coverdale},
       year = {2026},
-      note = {R package version 0.1.0},
+      note = {R package version 0.1.2},
       url = {https://github.com/charlescoverdale/ivcheck},
     }
 

@@ -11,7 +11,7 @@ a one-line verdict."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">ivcheck</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -109,10 +109,12 @@ of mutually exclusive dummy variables (judge-IV / group design).</p></li>
 <span class="r-in"><span>  <span class="va">m</span> <span class="op">&lt;-</span> <span class="fu">fixest</span><span class="fu">::</span><span class="fu"><a href="https://lrberge.github.io/fixest/reference/feols.html" class="external-link">feols</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x</span> <span class="op">|</span> <span class="va">d</span> <span class="op">~</span> <span class="va">z</span>, data <span class="op">=</span> <span class="va">df</span><span class="op">)</span></span></span>
 <span class="r-in"><span>  <span class="fu">iv_check</span><span class="op">(</span><span class="va">m</span>, n_boot <span class="op">=</span> <span class="fl">200</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Kitagawa test skipped: fitted model has exogenous controls and</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span>   `iv_kitagawa()` is unconditional.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> The conditional Mourifie-Wan test is the right object here.</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">──</span> <span style="font-weight: bold;">IV validity diagnostic</span> <span style="color: #00BBBB;">──────────────────────────────────────────────────────</span></span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Kitagawa (2015)</span>: stat = <span style="color: #0000BB;">"0.845"</span>, p = <span style="color: #0000BB;">"1"</span>, pass</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Mourifie-Wan (2017)</span>: stat = <span style="color: #0000BB;">"42.4"</span>, p = <span style="color: #0000BB;">"0.43"</span>, pass</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="font-weight: bold;">Mourifie-Wan (2017)</span>: stat = <span style="color: #0000BB;">"42.4"</span>, p = <span style="color: #0000BB;">"0.415"</span>, pass</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Overall: cannot reject IV validity at 0.05.</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>

@@ -1,5 +1,39 @@
 # Changelog
 
+## ivcheck 0.1.2
+
+### Bug fix (behaviour change)
+
+- [`iv_kitagawa()`](https://charlescoverdale.github.io/ivcheck/reference/iv_kitagawa.md)
+  dispatched on a fitted `fixest` or `ivreg` model with exogenous
+  controls used to silently drop the controls and return the
+  unconditional test. This was wrong when validity is only conditional
+  on X. The fitted-model methods now error and direct the user to
+  [`iv_mw()`](https://charlescoverdale.github.io/ivcheck/reference/iv_mw.md)
+  for the conditional Mourifie-Wan (2017) test, or to the raw-vector
+  default method to force an unconditional test on the same data.
+- [`iv_check()`](https://charlescoverdale.github.io/ivcheck/reference/iv_check.md)
+  now filters its applicable-tests list by the presence and
+  dimensionality of exogenous controls. Kitagawa is dropped when any
+  control is present; Mourifie-Wan is dropped when more than one control
+  is present (multivariate X is planned for v0.2.0 via a tensor-product
+  series basis). When a test is dropped,
+  [`iv_check()`](https://charlescoverdale.github.io/ivcheck/reference/iv_check.md)
+  emits an informational message explaining why.
+- [`iv_check()`](https://charlescoverdale.github.io/ivcheck/reference/iv_check.md)
+  no longer falls back to running Mourifie-Wan unconditionally when
+  handed a model with multivariate controls. That downgrade was the same
+  silent-drop bug as the Kitagawa one.
+
+### Documentation
+
+- [`vignette("with-fixest")`](https://charlescoverdale.github.io/ivcheck/articles/with-fixest.md)
+  rewritten to demonstrate the new behaviour: the unconditional case,
+  the single-control conditional path through
+  [`iv_mw()`](https://charlescoverdale.github.io/ivcheck/reference/iv_mw.md),
+  and the multivariate workaround (propensity-index dimension
+  reduction).
+
 ## ivcheck 0.1.1
 
 CRAN release: 2026-04-22

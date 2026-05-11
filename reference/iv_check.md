@@ -71,10 +71,12 @@ if (requireNamespace("fixest", quietly = TRUE)) {
   m <- fixest::feols(y ~ x | d ~ z, data = df)
   iv_check(m, n_boot = 200)
 }
+#> ℹ Kitagawa test skipped: fitted model has exogenous controls and
+#>   `iv_kitagawa()` is unconditional.
+#> ℹ The conditional Mourifie-Wan test is the right object here.
 #> 
 #> ── IV validity diagnostic ──────────────────────────────────────────────────────
-#> Kitagawa (2015): stat = "0.845", p = "1", pass
-#> Mourifie-Wan (2017): stat = "42.4", p = "0.43", pass
+#> Mourifie-Wan (2017): stat = "42.4", p = "0.415", pass
 #> Overall: cannot reject IV validity at 0.05.
 # }
 ```

@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="index.html">ivcheck</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -91,13 +91,14 @@
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://lrberge.github.io/fixest/" class="external-link">fixest</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://charlescoverdale.github.io/ivcheck/">ivcheck</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">m</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://lrberge.github.io/fixest/reference/feols.html" class="external-link">feols</a></span><span class="op">(</span><span class="va">lwage</span> <span class="op">~</span> <span class="va">controls</span> <span class="op">|</span> <span class="va">educ</span> <span class="op">~</span> <span class="va">near_college</span>, data <span class="op">=</span> <span class="va">card1995</span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/iv_check.html">iv_check</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">card1995</span><span class="op">)</span></span>
+<span><span class="va">m</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://lrberge.github.io/fixest/reference/feols.html" class="external-link">feols</a></span><span class="op">(</span><span class="va">lwage</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">|</span> <span class="va">college</span> <span class="op">~</span> <span class="va">near_college</span>, data <span class="op">=</span> <span class="va">card1995</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/iv_check.html">iv_check</a></span><span class="op">(</span><span class="va">m</span>, n_boot <span class="op">=</span> <span class="fl">500</span><span class="op">)</span></span>
 <span><span class="co">#&gt; IV validity diagnostic</span></span>
-<span><span class="co">#&gt;   Kitagawa (2015):     stat = 0.01, p = 1.00, pass</span></span>
-<span><span class="co">#&gt;   Mourifie-Wan (2017): stat = 0.65, p = 0.99, pass</span></span>
-<span><span class="co">#&gt; Overall: cannot reject IV validity at 0.05.</span></span></code></pre></div>
-<p>Two added lines, a falsification test the referee is almost guaranteed to ask about, citation-ready output.</p>
+<span><span class="co">#&gt;   Kitagawa (2015):     stat = 5.25, p = 0.00, reject</span></span>
+<span><span class="co">#&gt;   Mourifie-Wan (2017): stat = 5.25, p = 0.00, reject</span></span>
+<span><span class="co">#&gt; Overall: at least one test rejects IV validity at 0.05.</span></span></code></pre></div>
+<p>Two added lines, a falsification test the referee is almost guaranteed to ask about, citation-ready output. The unconditional rejection above is the <em>correct</em> reading: Card’s IV is plausible only conditional on demographic controls. Add a control and the conditional Mourifie-Wan test passes (see the end-to-end example below).</p>
 </div>
 <div class="section level2">
 <h2 id="walkthrough">Walkthrough<a class="anchor" aria-label="anchor" href="#walkthrough"></a>
@@ -156,7 +157,7 @@
 <span><span class="va">m</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://lrberge.github.io/fixest/reference/feols.html" class="external-link">feols</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x</span> <span class="op">|</span> <span class="va">d</span> <span class="op">~</span> <span class="va">z</span>, data <span class="op">=</span> <span class="va">df</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="reference/iv_check.html">iv_check</a></span><span class="op">(</span><span class="va">m</span>, n_boot <span class="op">=</span> <span class="fl">500</span><span class="op">)</span></span></code></pre></div>
-<p><code><a href="reference/iv_check.html">iv_check()</a></code> detects which tests are applicable from the model structure (binary versus multivalued D, discrete versus judge-style Z, presence of covariates) and runs all of them. Works identically on <code><a href="https://zeileis.github.io/ivreg/reference/ivreg.html" class="external-link">ivreg::ivreg()</a></code> objects.</p>
+<p><code><a href="reference/iv_check.html">iv_check()</a></code> detects which tests are applicable from the model structure (binary versus multivalued D, discrete versus judge-style Z, presence and dimensionality of exogenous controls) and runs only the applicable ones. <code><a href="reference/iv_kitagawa.html">iv_kitagawa()</a></code> is the unconditional test, so it is skipped when the model carries any exogenous control; <code><a href="reference/iv_mw.html">iv_mw()</a></code> is the conditional test and runs with up to one covariate via the Chernozhukov-Lee-Rosen series-regression path (multivariate planned for v0.2.0). Works identically on <code><a href="https://zeileis.github.io/ivreg/reference/ivreg.html" class="external-link">ivreg::ivreg()</a></code> objects.</p>
 </div>
 <div class="section level3">
 <h3 id="power-planning">Power planning<a class="anchor" aria-label="anchor" href="#power-planning"></a>
@@ -169,23 +170,33 @@
 <div class="section level2">
 <h2 id="example-end-to-end-with-card-1995">Example: end-to-end with Card (1995)<a class="anchor" aria-label="anchor" href="#example-end-to-end-with-card-1995"></a>
 </h2>
+<p>The unconditional test rejects; the conditional one does not. That contrast is the right reading of Card’s design.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://charlescoverdale.github.io/ivcheck/">ivcheck</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://lrberge.github.io/fixest/" class="external-link">fixest</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">card1995</span><span class="op">)</span>   <span class="co"># bundled</span></span>
-<span><span class="va">m</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://lrberge.github.io/fixest/reference/feols.html" class="external-link">feols</a></span><span class="op">(</span></span>
-<span>  <span class="va">lwage</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">married</span> <span class="op">+</span> <span class="va">black</span> <span class="op">+</span> <span class="va">south</span> <span class="op">|</span> <span class="va">college</span> <span class="op">~</span> <span class="va">near_college</span>,</span>
-<span>  data <span class="op">=</span> <span class="va">card1995</span></span>
-<span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="reference/iv_check.html">iv_check</a></span><span class="op">(</span><span class="va">m</span>, n_boot <span class="op">=</span> <span class="fl">1000</span><span class="op">)</span></span>
+<span><span class="co"># Unconditional: Kitagawa and Mourifie-Wan both reject.</span></span>
+<span><span class="va">m_uncond</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://lrberge.github.io/fixest/reference/feols.html" class="external-link">feols</a></span><span class="op">(</span><span class="va">lwage</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">|</span> <span class="va">college</span> <span class="op">~</span> <span class="va">near_college</span>, data <span class="op">=</span> <span class="va">card1995</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/iv_check.html">iv_check</a></span><span class="op">(</span><span class="va">m_uncond</span>, n_boot <span class="op">=</span> <span class="fl">500</span><span class="op">)</span></span>
 <span><span class="co">#&gt; IV validity diagnostic</span></span>
-<span><span class="co">#&gt;   Kitagawa (2015):     stat = 7.98, p = 0.00, reject</span></span>
-<span><span class="co">#&gt;   Mourifie-Wan (2017): stat = 7.98, p = 0.00, reject</span></span>
-<span><span class="co">#&gt; Overall: at least one test rejects IV validity at 0.05.</span></span></code></pre></div>
-<p>The interval-sup Kitagawa test rejects on this binary-discretised <code>college</code> treatment. The binding violation sits in the upper lwage interval [6.25, 7.78], where college-graduates living away from a college have more mass than the test’s implied bound admits. Monte Carlo on a Card-shaped DGP with Gaussian outcome produces empirical size of 1.25% at nominal 5%, so the rejection is not a size artifact: it reflects a genuine feature of Card’s empirical outcome distribution conditional on college and proximity.</p>
-<p>This is not a rejection of Card’s original IV, which targets continuous years of schooling. The binary <code>educ &gt;= 16</code> threshold creates mixed complier subpopulations whose testable implications bite differently than the continuous-treatment case. Users running the test on their own binary-IV designs should inspect <code>result$binding</code> to see which outcome interval carries the violation, and consider whether the discretisation itself is driving the finding.</p>
+<span><span class="co">#&gt;   Kitagawa (2015):     stat = 5.25, p = 0.00, reject</span></span>
+<span><span class="co">#&gt;   Mourifie-Wan (2017): stat = 5.25, p = 0.00, reject</span></span>
+<span><span class="co">#&gt; Overall: at least one test rejects IV validity at 0.05.</span></span>
+<span></span>
+<span><span class="co"># Conditional on age: the conditional Mourifie-Wan test does not reject.</span></span>
+<span><span class="va">m_cond</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://lrberge.github.io/fixest/reference/feols.html" class="external-link">feols</a></span><span class="op">(</span><span class="va">lwage</span> <span class="op">~</span> <span class="va">age</span> <span class="op">|</span> <span class="va">college</span> <span class="op">~</span> <span class="va">near_college</span>, data <span class="op">=</span> <span class="va">card1995</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/iv_check.html">iv_check</a></span><span class="op">(</span><span class="va">m_cond</span>, n_boot <span class="op">=</span> <span class="fl">200</span><span class="op">)</span></span>
+<span><span class="co">#&gt; i Kitagawa test skipped: fitted model has exogenous controls and</span></span>
+<span><span class="co">#&gt;   iv_kitagawa() is unconditional.</span></span>
+<span><span class="co">#&gt; i The conditional Mourifie-Wan test is the right object here.</span></span>
+<span><span class="co">#&gt;</span></span>
+<span><span class="co">#&gt; IV validity diagnostic</span></span>
+<span><span class="co">#&gt;   Mourifie-Wan (2017): stat = 79.5, p = 0.71, pass</span></span>
+<span><span class="co">#&gt; Overall: cannot reject IV validity at 0.05.</span></span></code></pre></div>
+<p>Card’s identification strategy is “proximity-to-college is plausible only conditional on demographic controls”. The unconditional test catches this and refuses to validate the IV. Once a single demographic control (<code>age</code>) is included, the conditional Mourifie-Wan test reads the design as compatible with LATE-validity at the 5% level. Multivariate controls (Card’s canonical specification uses age plus race and region) are planned for v0.2.0 via a tensor-product series basis; in v0.1.2 the workaround is to reduce additional controls to a single propensity index.</p>
+<p>This is a test of the binary <code>college = (educ &gt;= 16)</code> discretisation, not Card’s original continuous-schooling IV. Inspect <code>result$binding</code> to see which outcome interval carries the violation when a rejection occurs.</p>
 </div>
 <div class="section level2">
 <h2 id="functions">Functions<a class="anchor" aria-label="anchor" href="#functions"></a>
@@ -228,7 +239,7 @@
 </h2>
 <p>Read before using in published work.</p>
 <div class="section level3">
-<h3 id="scope-v010-does-not-cover">Scope (v0.1.0 does not cover)<a class="anchor" aria-label="anchor" href="#scope-v010-does-not-cover"></a>
+<h3 id="scope">Scope<a class="anchor" aria-label="anchor" href="#scope"></a>
 </h3>
 <ul>
 <li>
@@ -236,7 +247,7 @@
 <li>
 <strong>Fuzzy regression discontinuity.</strong> FRD has its own testable implications at the cutoff (Arai, Hsu, Kitagawa, Mourifie, and Wan 2022). Handling them requires different infrastructure (running variable, bandwidth selection, bias correction) that does not fit the current fitted-IV-model spine; a dedicated <code>iv_frd()</code> function is planned for v0.2.0.</li>
 <li>
-<strong><code>iv_mw</code> with covariates under weights.</strong> The <code>weights</code> argument is fully implemented for <code>iv_kitagawa</code>, <code>iv_testjfe</code>, and the no-covariate path of <code>iv_mw</code>. The CLR series-regression path for <code>iv_mw</code> with covariates does not yet propagate weights; planned for v0.1.1.</li>
+<strong><code>iv_mw</code> with covariates under weights.</strong> The <code>weights</code> argument is fully implemented for <code>iv_kitagawa</code>, <code>iv_testjfe</code>, and the no-covariate path of <code>iv_mw</code>. The CLR series-regression path for <code>iv_mw</code> with covariates does not yet propagate weights; planned for v0.2.1.</li>
 <li>
 <strong>Fixed-effects IV models.</strong> <code>iv_kitagawa</code>, <code>iv_mw</code>, and <code>iv_testjfe</code> dispatched on a <code>fixest</code> model with <code>| FE |</code> aborts with a clear error. The discrete-Z tests operate on the raw (Y, D, Z) joint distribution; within-FE residualisation destroys the discrete structure of Z. Workaround: pre-demean Y and D inside each FE cell and pass as raw vectors to the default method. A proper stratified-by-FE variant is on the v0.2.0 roadmap.</li>
 <li>
@@ -270,7 +281,7 @@
 <li>
 <strong>Non-rejection is not proof of validity.</strong> The tests have power against violations in the observable conditional distributions but are silent on violations that cancel out across subgroups.</li>
 <li>
-<strong>Kitagawa vs Mourifie-Wan with covariates.</strong> If the exclusion restriction is only plausible conditional on <code>X</code>, run <code>iv_mw</code> with <code>x</code>. Running <code>iv_kitagawa</code> unconditionally on an X-dependent design can give spurious non-rejection.</li>
+<strong>Kitagawa vs Mourifie-Wan with covariates.</strong> If the exclusion restriction is only plausible conditional on <code>X</code>, run <code>iv_mw</code> with <code>x</code>. <code><a href="reference/iv_kitagawa.html">iv_kitagawa()</a></code> is strictly the unconditional test: dispatched on a fitted model with exogenous controls, it errors with a pointer to <code><a href="reference/iv_mw.html">iv_mw()</a></code>, rather than silently dropping the controls (which earlier versions did and which produced misleading non-rejections; fixed in v0.1.2).</li>
 <li>
 <strong>Many-instrument / judge regimes.</strong> For 20+ judge levels, prefer <code>iv_testjfe</code> over <code>iv_kitagawa</code>; the KS test loses power rapidly as <code>|Z|</code> grows.</li>
 <li>

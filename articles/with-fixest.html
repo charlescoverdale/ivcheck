@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">ivcheck</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -109,44 +109,34 @@ schooling) and a binary <code>college</code> indicator
 treatment.</p>
 </div>
 <div class="section level2">
-<h2 id="fit-the-iv-regression">Fit the IV regression<a class="anchor" aria-label="anchor" href="#fit-the-iv-regression"></a>
+<h2 id="the-unconditional-case-no-exogenous-controls">The unconditional case: no exogenous controls<a class="anchor" aria-label="anchor" href="#the-unconditional-case-no-exogenous-controls"></a>
 </h2>
+<p>We start with the simplest specification: no exogenous controls in
+the structural equation. This is the case <code><a href="../reference/iv_kitagawa.html">iv_kitagawa()</a></code> is
+designed for.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">m</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://lrberge.github.io/fixest/reference/feols.html" class="external-link">feols</a></span><span class="op">(</span></span>
-<span>  <span class="va">lwage</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">black</span> <span class="op">+</span> <span class="va">south</span> <span class="op">|</span> <span class="va">college</span> <span class="op">~</span> <span class="va">near_college</span>,</span>
+<code class="sourceCode R"><span><span class="va">m_uncond</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://lrberge.github.io/fixest/reference/feols.html" class="external-link">feols</a></span><span class="op">(</span></span>
+<span>  <span class="va">lwage</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">|</span> <span class="va">college</span> <span class="op">~</span> <span class="va">near_college</span>,</span>
 <span>  data <span class="op">=</span> <span class="va">card1995</span></span>
 <span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span></span>
-<span><span class="co">#&gt; TSLS estimation</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">m_uncond</span><span class="op">)</span></span>
+<span><span class="co">#&gt; TSLS estimation: Second stage</span></span>
 <span><span class="co">#&gt; |- D.V.   : lwage</span></span>
 <span><span class="co">#&gt; |- Endo.  : college</span></span>
 <span><span class="co">#&gt; |- Instr. : near_college</span></span>
-<span><span class="co">#&gt; |</span></span>
-<span><span class="co">#&gt; |=&gt; Second Stage</span></span>
-<span><span class="co">#&gt; |   Dep. Var.: lwage</span></span>
+<span><span class="co">#&gt; Dep. Var.: lwage</span></span>
 <span><span class="co">#&gt; Observations: 3,003</span></span>
 <span><span class="co">#&gt; Standard-errors: IID </span></span>
-<span><span class="co">#&gt;              Estimate Std. Error   t value   Pr(&gt;|t|)    </span></span>
-<span><span class="co">#&gt; (Intercept)  4.941675   0.201548 24.518545  &lt; 2.2e-16 ***</span></span>
-<span><span class="co">#&gt; fit_college  1.899996   0.722022  2.631492 8.5446e-03 ** </span></span>
-<span><span class="co">#&gt; age          0.029114   0.006036  4.823564 1.4805e-06 ***</span></span>
-<span><span class="co">#&gt; black        0.113946   0.137925  0.826142 4.0879e-01    </span></span>
-<span><span class="co">#&gt; south       -0.101832   0.045242 -2.250843 2.4468e-02 *  </span></span>
+<span><span class="co">#&gt;             Estimate Std. Error  t value   Pr(&gt;|t|)    </span></span>
+<span><span class="co">#&gt; (Intercept)  5.65161   0.155590 36.32367  &lt; 2.2e-16 ***</span></span>
+<span><span class="co">#&gt; fit_college  2.24687   0.568671  3.95109 7.9588e-05 ***</span></span>
 <span><span class="co">#&gt; ---</span></span>
 <span><span class="co">#&gt; Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</span></span>
-<span><span class="co">#&gt; RMSE: 0.853163   Adj. R2: 0.208408</span></span>
-<span><span class="co">#&gt; F-test (1st stage), college: stat =  7.3643, p = 0.006691, on 1 and 2,998 DoF.</span></span>
-<span><span class="co">#&gt;                  Wu-Hausman: stat = 28.0617, p = 1.26e-7 , on 1 and 2,997 DoF.</span></span></code></pre></div>
-<p>The endogenous variable <code>college</code> is instrumented by
-<code>near_college</code>. The first-stage F is strong. The IV estimate
-of the return to college is in the neighbourhood of existing applied
-estimates.</p>
-</div>
-<div class="section level2">
-<h2 id="run-every-applicable-iv-validity-test">Run every applicable IV-validity test<a class="anchor" aria-label="anchor" href="#run-every-applicable-iv-validity-test"></a>
-</h2>
+<span><span class="co">#&gt; RMSE: 0.996225   Adj. R2: 0.02591</span></span>
+<span><span class="co">#&gt; F-test (1st stage), college: stat = 15.589, p = 8.052e-5, on 1 and 3,001 DoF.</span></span>
+<span><span class="co">#&gt;                  Wu-Hausman: stat = 68.919, p &lt; 2.2e-16 , on 1 and 3,000 DoF.</span></span></code></pre></div>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">chk</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/iv_check.html">iv_check</a></span><span class="op">(</span><span class="va">m</span>, n_boot <span class="op">=</span> <span class="fl">500</span>, parallel <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">chk</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/iv_check.html">iv_check</a></span><span class="op">(</span><span class="va">m_uncond</span>, n_boot <span class="op">=</span> <span class="fl">500</span>, parallel <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">chk</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">──</span> <span style="font-weight: bold;">IV validity diagnostic</span> <span style="color: #00BBBB;">──────────────────────────────────────────────────────</span></span></span>
@@ -156,37 +146,118 @@ estimates.</p>
 <p><code><a href="../reference/iv_check.html">iv_check()</a></code> inspects the model, detects that
 <code>college</code> is binary and <code>near_college</code> is a
 discrete instrument, and runs Kitagawa (2015) and Mourifie-Wan (2017).
-Neither test rejects; the IV passes. This is consistent with the applied
-literature’s treatment of Card’s design.</p>
-</div>
-<div class="section level2">
-<h2 id="dispatching-directly-on-the-model">Dispatching directly on the model<a class="anchor" aria-label="anchor" href="#dispatching-directly-on-the-model"></a>
-</h2>
-<p>If you want to run a single test rather than the full suite, each
-function dispatches on <code>fixest</code> objects too:</p>
+With no covariates the two are numerically identical (Mourifie-Wan
+reduces exactly to the variance-weighted Kitagawa test,
+unit-tested).</p>
+<div class="section level3">
+<h3 id="bootstrap-distribution">Bootstrap distribution<a class="anchor" aria-label="anchor" href="#bootstrap-distribution"></a>
+</h3>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/iv_kitagawa.html">iv_kitagawa</a></span><span class="op">(</span><span class="va">m</span>, n_boot <span class="op">=</span> <span class="fl">300</span>, parallel <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">──</span> <span style="font-weight: bold;">Kitagawa (2015)</span> <span style="color: #00BBBB;">─────────────────────────────────────────────────────────────</span></span></span>
-<span><span class="co">#&gt; Sample size: <span style="color: #0000BB;">3003</span></span></span>
-<span><span class="co">#&gt; Statistic: <span style="color: #0000BB;">"5.25"</span>, p-value: <span style="color: #0000BB;">"0"</span></span></span>
-<span><span class="co">#&gt; Verdict: reject IV validity at 0.05</span></span></code></pre></div>
-<p>The function extracts <code>y</code>, <code>d</code>, and
-<code>z</code> from the fitted model (including the first stage) and
-runs the test. You never touch the raw vectors.</p>
-</div>
-<div class="section level2">
-<h2 id="inspecting-the-bootstrap-distribution">Inspecting the bootstrap distribution<a class="anchor" aria-label="anchor" href="#inspecting-the-bootstrap-distribution"></a>
-</h2>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">k</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/iv_kitagawa.html">iv_kitagawa</a></span><span class="op">(</span><span class="va">m</span>, n_boot <span class="op">=</span> <span class="fl">500</span>, parallel <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">k</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/iv_kitagawa.html">iv_kitagawa</a></span><span class="op">(</span><span class="va">m_uncond</span>, n_boot <span class="op">=</span> <span class="fl">500</span>, parallel <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/hist.html" class="external-link">hist</a></span><span class="op">(</span><span class="va">k</span><span class="op">$</span><span class="va">boot_stats</span>, breaks <span class="op">=</span> <span class="fl">40</span>,</span>
-<span>     main <span class="op">=</span> <span class="st">"Kitagawa bootstrap distribution (Card 1995)"</span>,</span>
+<span>     main <span class="op">=</span> <span class="st">"Kitagawa bootstrap distribution (Card 1995, no controls)"</span>,</span>
 <span>     xlab <span class="op">=</span> <span class="st">"sqrt(n) * positive-part KS"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/abline.html" class="external-link">abline</a></span><span class="op">(</span>v <span class="op">=</span> <span class="va">k</span><span class="op">$</span><span class="va">statistic</span>, col <span class="op">=</span> <span class="st">"red"</span>, lwd <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span></code></pre></div>
-<p><img src="figures/with-fixest-unnamed-chunk-7-1.png" class="r-plt" alt="" width="576"></p>
-<p>The observed statistic (red line) sits well inside the bootstrap
-distribution, consistent with a non-rejection.</p>
+<p><img src="figures/with-fixest-unnamed-chunk-6-1.png" class="r-plt" alt="" width="576"></p>
+</div>
+</div>
+<div class="section level2">
+<h2 id="the-conditional-case-one-exogenous-control">The conditional case: one exogenous control<a class="anchor" aria-label="anchor" href="#the-conditional-case-one-exogenous-control"></a>
+</h2>
+<p>Card’s identification strategy is more naturally read as “valid
+<em>conditional on</em> demographic and regional controls”. In that
+setting the right test is Mourifie and Wan’s (2017) conditional version:
+same testable family of inequalities as Kitagawa, but the conditional
+CDFs are estimated by series regression on <code>X</code> rather than
+treated as unconditional.</p>
+<p>In <code>ivcheck</code> v0.1.2, the conditional path supports a
+single covariate (multivariate via tensor-product basis is planned for
+v0.2.0).</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">m_cond</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://lrberge.github.io/fixest/reference/feols.html" class="external-link">feols</a></span><span class="op">(</span></span>
+<span>  <span class="va">lwage</span> <span class="op">~</span> <span class="va">age</span> <span class="op">|</span> <span class="va">college</span> <span class="op">~</span> <span class="va">near_college</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">card1995</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p><code><a href="../reference/iv_kitagawa.html">iv_kitagawa()</a></code> is strictly the unconditional test and
+refuses fitted models that carry controls:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/iv_kitagawa.html">iv_kitagawa</a></span><span class="op">(</span><span class="va">m_cond</span>, n_boot <span class="op">=</span> <span class="fl">100</span>, parallel <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #BBBB00; font-weight: bold;">Error</span><span style="font-weight: bold;"> in `abort_if_controls_present()`:</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BBBB00;">!</span> `iv_kitagawa()` is the unconditional Kitagawa (2015) test; it does not</span></span>
+<span><span class="co">#&gt;   condition on controls.</span></span>
+<span><span class="co">#&gt; <span style="color: #BB0000;">✖</span> Your fitted model has 1 exogenous control(s): 'age'.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Use `iv_mw()` on the same model for the conditional Mourifie-Wan (2017) test.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> To force the unconditional test on these data, call `iv_kitagawa()` on raw</span></span>
+<span><span class="co">#&gt;   `(y, d, z)` vectors.</span></span></code></pre></div>
+<p>The conditional test is <code><a href="../reference/iv_mw.html">iv_mw()</a></code>. Dispatched on the same
+fitted model, it picks up the single covariate automatically and runs
+the Chernozhukov-Lee-Rosen series-regression test with Andrews-Soares
+adaptive moment selection:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">mw</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/iv_mw.html">iv_mw</a></span><span class="op">(</span><span class="va">m_cond</span>, n_boot <span class="op">=</span> <span class="fl">200</span>, parallel <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">mw</span><span class="op">)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">──</span> <span style="font-weight: bold;">Mourifie-Wan (2017)</span> <span style="color: #00BBBB;">─────────────────────────────────────────────────────────</span></span></span>
+<span><span class="co">#&gt; Sample size: <span style="color: #0000BB;">3003</span></span></span>
+<span><span class="co">#&gt; Statistic: <span style="color: #0000BB;">"79.5"</span>, p-value: <span style="color: #0000BB;">"0.675"</span></span></span>
+<span><span class="co">#&gt; Verdict: cannot reject IV validity at 0.05</span></span></code></pre></div>
+<p><code><a href="../reference/iv_check.html">iv_check()</a></code> does the right thing automatically: it
+detects that the model has controls, drops Kitagawa from the applicable
+list with an informational message, and reports MW alone:</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/iv_check.html">iv_check</a></span><span class="op">(</span><span class="va">m_cond</span>, n_boot <span class="op">=</span> <span class="fl">200</span>, parallel <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Kitagawa test skipped: fitted model has exogenous controls and</span></span>
+<span><span class="co">#&gt;   `iv_kitagawa()` is unconditional.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> The conditional Mourifie-Wan test is the right object here.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">──</span> <span style="font-weight: bold;">IV validity diagnostic</span> <span style="color: #00BBBB;">──────────────────────────────────────────────────────</span></span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="font-weight: bold;">Mourifie-Wan (2017)</span>: stat = <span style="color: #0000BB;">"79.5"</span>, p = <span style="color: #0000BB;">"0.695"</span>, pass</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Overall: cannot reject IV validity at 0.05.</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="multivariate-controls">Multivariate controls<a class="anchor" aria-label="anchor" href="#multivariate-controls"></a>
+</h2>
+<p>When the structural equation carries more than one exogenous control,
+<code><a href="../reference/iv_mw.html">iv_mw()</a></code> in v0.1.2 does not yet support the multivariate
+conditioning required for a valid conditional test. Both Kitagawa and MW
+are skipped, and <code><a href="../reference/iv_check.html">iv_check()</a></code> reports back with informational
+messages:</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">m_multi</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://lrberge.github.io/fixest/reference/feols.html" class="external-link">feols</a></span><span class="op">(</span></span>
+<span>  <span class="va">lwage</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">black</span> <span class="op">+</span> <span class="va">south</span> <span class="op">|</span> <span class="va">college</span> <span class="op">~</span> <span class="va">near_college</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">card1995</span></span>
+<span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/iv_check.html">iv_check</a></span><span class="op">(</span><span class="va">m_multi</span>, n_boot <span class="op">=</span> <span class="fl">100</span>, parallel <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Kitagawa test skipped: fitted model has exogenous controls and</span></span>
+<span><span class="co">#&gt;   `iv_kitagawa()` is unconditional.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> The conditional Mourifie-Wan test is the right object here.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Mourifie-Wan test skipped: multivariate `X` (&gt;1 control) is not yet supported</span></span>
+<span><span class="co">#&gt;   in v0.1.2.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Planned for v0.2.0 via tensor-product series basis.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Workaround: reduce `X` to a single propensity index and call `iv_mw()`</span></span>
+<span><span class="co">#&gt;   directly.</span></span>
+<span><span class="co">#&gt; <span style="color: #BBBB00; font-weight: bold;">Error</span><span style="font-weight: bold;"> in `iv_check()`:</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BBBB00;">!</span> Could not detect an applicable IV-validity test for this model.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> The model does not appear to be an IV model, or the treatment is not binary.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Supported: `fixest::feols()` with formula `y ~ x | d ~ z` or</span></span>
+<span><span class="co">#&gt;   `ivreg::ivreg()`.</span></span></code></pre></div>
+<p>Multivariate conditioning via tensor-product series basis is planned
+for v0.2.0. Until then, two workarounds:</p>
+<ol style="list-style-type: decimal">
+<li>
+<strong>Reduce <code>X</code> to a single index.</strong> Fit a
+propensity score <code>Pr(D = 1 | X)</code> or another scalar summary of
+the controls, then refit the IV model with that index as the single
+exogenous control and call <code><a href="../reference/iv_mw.html">iv_mw()</a></code> on the result.</li>
+<li>
+<strong>Stratify and run unconditional tests within strata.</strong>
+Coarsely bin <code>X</code> and call <code><a href="../reference/iv_kitagawa.html">iv_kitagawa()</a></code> on raw
+vectors within each cell, applying a Bonferroni adjustment across
+cells.</li>
+</ol>
 </div>
 <div class="section level2">
 <h2 id="combining-with-modelsummary">Combining with <code>modelsummary</code><a class="anchor" aria-label="anchor" href="#combining-with-modelsummary"></a>
@@ -195,12 +266,12 @@ distribution, consistent with a non-rejection.</p>
 <code>iv_check</code> results are picked up automatically through
 <code><a href="https://generics.r-lib.org/reference/glance.html" class="external-link">broom::glance</a></code> registered on package load. This lets you put
 a validity p-value directly in a regression table footer:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://modelsummary.com" class="external-link">modelsummary</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://modelsummary.com/man/modelsummary.html" class="external-link">modelsummary</a></span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"IV estimate"</span> <span class="op">=</span> <span class="va">m</span><span class="op">)</span>,</span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"IV estimate"</span> <span class="op">=</span> <span class="va">m_cond</span><span class="op">)</span>,</span>
 <span>  gof_custom <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>    <span class="st">"Kitagawa 2015 p-value"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"%.3f"</span>, <span class="va">k</span><span class="op">$</span><span class="va">p_value</span><span class="op">)</span></span>
+<span>    <span class="st">"Mourifie-Wan 2017 p-value"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"%.3f"</span>, <span class="va">mw</span><span class="op">$</span><span class="va">p_value</span><span class="op">)</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
@@ -208,14 +279,14 @@ a validity p-value directly in a regression table footer:</p>
 <h2 id="the-full-workflow">The full workflow<a class="anchor" aria-label="anchor" href="#the-full-workflow"></a>
 </h2>
 <p>In your paper’s replication code:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://lrberge.github.io/fixest/" class="external-link">fixest</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://charlescoverdale.github.io/ivcheck/">ivcheck</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># ... data loading ...</span></span>
 <span></span>
-<span><span class="co"># IV estimate</span></span>
-<span><span class="va">m</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://lrberge.github.io/fixest/reference/feols.html" class="external-link">feols</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">controls</span> <span class="op">|</span> <span class="va">d</span> <span class="op">~</span> <span class="va">z</span>, data <span class="op">=</span> <span class="va">df</span><span class="op">)</span></span>
+<span><span class="co"># IV estimate (conditional on a single control)</span></span>
+<span><span class="va">m</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://lrberge.github.io/fixest/reference/feols.html" class="external-link">feols</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x</span> <span class="op">|</span> <span class="va">d</span> <span class="op">~</span> <span class="va">z</span>, data <span class="op">=</span> <span class="va">df</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># IV validity diagnostic</span></span>
 <span><span class="va">chk</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/iv_check.html">iv_check</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span></span>
@@ -233,6 +304,9 @@ point of <code>ivcheck</code>.</p>
 Estimate the Return to Schooling.</p>
 <p>Kitagawa, T. (2015). A Test for Instrument Validity.
 <em>Econometrica</em> 83(5): 2043-2063.</p>
+<p>Mourifie, I. and Wan, Y. (2017). Testing Local Average Treatment
+Effect Assumptions. <em>Review of Economics and Statistics</em> 99(2):
+305-313.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
