@@ -1,5 +1,5 @@
 ---
-title: "ivcheck: Tests of Instrumental Variable Validity in R"
+title: "ivcheck: Tests for Instrumental Variable Validity in R"
 author:
   - name: Charles Coverdale
     affiliation: "London, United Kingdom"
@@ -9,7 +9,7 @@ author:
 abstract: >
   The \CRANpkg{ivcheck} package implements three falsification tests of
   the identifying assumptions behind instrumental variable estimation of
-  the local average treatment effect: Kitagawa (2015), Mourifie and Wan
+  the local average treatment effect: Kitagawa (2015), Mourifié and Wan
   (2017), and Frandsen, Lefgren, and Leslie (2023). Each test had existed
   only as author-hosted replication code in Stata or Matlab prior to
   this package. \CRANpkg{ivcheck} exposes each as a named R function
@@ -18,15 +18,17 @@ abstract: >
   fitted model in a single call. The implementation uses the variance-
   weighted Kolmogorov-Smirnov form of Kitagawa, the full Chernozhukov-
   Lee-Rosen intersection-bounds inference with Andrews-Soares adaptive
-  moment selection for Mourifie-Wan, and a chi-squared linearity
+  moment selection for Mourifié-Wan, and a chi-squared linearity
   specialisation of the Frandsen-Lefgren-Leslie overidentification
   statistic (with a natural extension to multivalued treatment);
   the bounded-slope inequality component of the full Frandsen-
   Lefgren-Leslie test is deferred to a future release. Monte Carlo
-  validation confirms that the empirical null distributions match
-  the asymptotic reference distributions.
+  validation confirms that the empirical null distributions track the
+  asymptotic reference distributions closely, with the judge-fixed-effects
+  test mildly conservative at modest per-cell sample sizes.
 preamble: |
   \usepackage{longtable}
+  \usepackage{tabularx}
 bibliography: RJreferences.bib
 output:
   rticles::rjournal_article:
@@ -38,9 +40,9 @@ output:
 
 The \CRANpkg{ivcheck} package provides falsification tests of the identifying assumptions behind instrumental variable (IV) estimation of the local average treatment effect (LATE). It implements three tests from the econometric literature [@kitagawa2015; @mourifie2017; @frandsen2023], each with S3 methods for fitted \CRANpkg{fixest} and \CRANpkg{ivreg} model objects, plus a wrapper that runs every applicable test on a single fitted model.
 
-Applied IV practice has a tooling gap. The identifying assumptions of the Imbens and Angrist [-@imbens1994] LATE framework, the local exclusion restriction and monotonicity, are routinely defended by hand-wave rather than tested, despite each having testable implications derived in the methodological literature since 2015. The reason is not conviction but distribution: Kitagawa's [-@kitagawa2015] test was released with supplementary Matlab code on the author's website; Mourifie and Wan's [-@mourifie2017] reformulation relies on the Chernozhukov-Lee-Rosen [-@chernozhukov2013] `clrtest` Stata module; Frandsen, Lefgren, and Leslie [-@frandsen2023] ship a Stata SSC module `testjfe`. We are not aware of an R package that implements any of the three; \CRANpkg{ivcheck} is, to our knowledge, the first. The adjacent \CRANpkg{ivDiag} [@lal2024] covers weak-instrument diagnostics (effective F, Anderson-Rubin, valid-t, local-to-zero) but does not implement LATE-validity tests; the R ecosystem has lacked a counterpart to that package for the falsification-test family.
+Applied IV practice has a tooling gap. The identifying assumptions of the Imbens and Angrist [-@imbens1994] LATE framework, the local exclusion restriction and monotonicity, are routinely defended by hand-wave rather than tested, despite each having testable implications derived in the methodological literature since 2015. The reason is not conviction but distribution: Kitagawa's [-@kitagawa2015] test was released with supplementary Matlab code on the author's website; Mourifié and Wan's [-@mourifie2017] reformulation relies on the Chernozhukov-Lee-Rosen [-@chernozhukov2013] `clrtest` Stata module; Frandsen, Lefgren, and Leslie [-@frandsen2023] ship a Stata SSC module `testjfe`. To our knowledge no package implements all three tests, and none of the three is available on CRAN. The closest prior work is the GitHub-hosted package \pkg{TestforInstrumentValidity} accompanying @carr2021, which implements the Kitagawa (2015) test with covariates but is not on CRAN and does not cover the Mourifié-Wan or Frandsen-Lefgren-Leslie tests. \CRANpkg{ivcheck} is the first CRAN package in this family and the first to cover all three. The adjacent \CRANpkg{ivDiag} [@lal2024] covers weak-instrument diagnostics (effective F, Anderson-Rubin, valid-t, local-to-zero) but does not implement LATE-validity tests; the R ecosystem has lacked a counterpart to that package for the falsification-test family.
 
-\CRANpkg{ivcheck} closes that gap. The package has three functional commitments. First, each test is a named R function (`iv_kitagawa`, `iv_mw`, `iv_testjfe`) that accepts either raw `(y, d, z)` vectors or a fitted IV model through S3 dispatch. Second, the implementations follow the published forms: Kitagawa's variance-weighted Kolmogorov-Smirnov statistic from Section 2.1 of that paper (equation 2.1), the Chernozhukov-Lee-Rosen intersection-bounds inference with Andrews-Soares [-@andrews2010] adaptive moment selection for the conditional Mourifie-Wan test, and a chi-squared linearity specialisation of the Frandsen-Lefgren-Leslie overidentification statistic (a Sargan-Hansen special case of their regression test) with a natural extension to multivalued treatment. Third, a one-shot `iv_check` wrapper detects which tests are applicable from the structure of a fitted IV model and runs them, producing a tidy summary ready for inclusion in a paper's appendix.
+\CRANpkg{ivcheck} closes that gap. The package has three functional commitments. First, each test is a named R function (`iv_kitagawa`, `iv_mw`, `iv_testjfe`) that accepts either raw `(y, d, z)` vectors or a fitted IV model through S3 dispatch. Second, the implementations follow the published forms: Kitagawa's variance-weighted Kolmogorov-Smirnov statistic from Section 2.1 of that paper (equation 2.1), the Chernozhukov-Lee-Rosen intersection-bounds inference with Andrews-Soares [-@andrews2010] adaptive moment selection for the conditional Mourifié-Wan test, and a chi-squared linearity specialisation of the Frandsen-Lefgren-Leslie overidentification statistic (a Sargan-Hansen special case of their regression test) with a natural extension to multivalued treatment. Third, a one-shot `iv_check` wrapper detects which tests are applicable from the structure of a fitted IV model and runs them, producing a tidy summary ready for inclusion in a paper's appendix.
 
 ## Background
 
@@ -56,6 +58,26 @@ All three tests share a structural feature: they test necessary conditions, not 
 
 ## Package design
 
+Table \ref{tab:functions} summarises the package's five exported functions: three falsification tests, a wrapper, and a power calculator.
+
+\begin{table}[tbp]
+\centering
+\small
+\begin{tabularx}{\linewidth}{lXX}
+\hline
+Function & Test or role & Key arguments \\
+\hline
+\texttt{iv\_kitagawa()} & Kitagawa (2015) variance-weighted Kolmogorov-Smirnov test; multivalued treatment via Sun (2023) & \texttt{weighting}, \texttt{se\_floor}, \texttt{n\_boot}, \texttt{multiplier}, \texttt{treatment\_order} \\
+\texttt{iv\_mw()} & Mourifié-Wan (2017) conditional moment-inequality test (Chernozhukov-Lee-Rosen bounds) & \texttt{x}, \texttt{basis\_order}, \texttt{x\_grid\_size}, \texttt{y\_grid\_size}, \texttt{adaptive}, \texttt{n\_boot} \\
+\texttt{iv\_testjfe()} & Frandsen-Lefgren-Leslie (2023) judge/group-IV overidentification test & \texttt{method}, \texttt{basis\_order}, \texttt{n\_boot} \\
+\texttt{iv\_check()} & Wrapper: detects and runs the applicable tests on a fitted IV model & \texttt{tests}, \texttt{alpha}, \texttt{n\_boot} \\
+\texttt{iv\_power()} & Monte Carlo power and size curves for design planning & \texttt{method}, \texttt{n\_sims}, \texttt{delta\_grid}, \texttt{n\_boot} \\
+\hline
+\end{tabularx}
+\caption{Exported functions of \CRANpkg{ivcheck}. The three test functions are S3 generics with methods for \CRANpkg{fixest}, \CRANpkg{ivreg}, and raw \texttt{(y, d, z)} vectors.}
+\label{tab:functions}
+\end{table}
+
 ### Architecture and dependencies
 
 \CRANpkg{ivcheck} is a pure-computation package. No network access is performed at runtime. R version 4.1.0 or later is required. Hard imports are `cli`, `stats`, and `parallel`; the bootstrap uses `parallel::mclapply` on POSIX systems with an explicit 2-core cap under R's `_R_CHECK_LIMIT_CORES_` environment variable. \CRANpkg{fixest}, \CRANpkg{ivreg}, \CRANpkg{modelsummary}, and \CRANpkg{broom} are in Suggests and are conditionally registered at load time via `.onLoad`.
@@ -70,7 +92,7 @@ Each test function is an S3 generic with methods for `fixest`, `ivreg`, and the 
 
 ### The `iv_check` wrapper
 
-`iv_check` inspects the model structure, detects which tests are applicable (binary versus discrete treatment, number of instrument levels, presence and dimensionality of exogenous controls), and runs only the applicable ones. The return is an `iv_check` object containing a tidy table with one row per test (name, statistic, p-value, verdict) plus an overall verdict string. When a user requests a specific test that is not applicable, `iv_check` warns and skips rather than silently dropping the request. In particular, `iv_kitagawa` is strictly the unconditional Kitagawa (2015) test and is dropped from the applicable list whenever the fitted model carries any exogenous control; `iv_mw` is the conditional test and supports up to one covariate in the current version (multivariate via tensor-product series basis is planned for v0.2.0).
+`iv_check` inspects the model structure, detects which tests are applicable (binary versus discrete treatment, number of instrument levels, presence and dimensionality of exogenous controls), and runs only the applicable ones. The return is an `iv_check` object containing a tidy table with one row per test (name, statistic, p-value, verdict) plus an overall verdict string. When a user requests a specific test that is not applicable, `iv_check` warns and skips rather than silently dropping the request. In particular, `iv_kitagawa` is strictly the unconditional Kitagawa (2015) test and is dropped from the applicable list whenever the fitted model carries any exogenous control; `iv_mw` is the conditional test and supports up to one covariate in the current version (multivariate via tensor-product series basis is planned for v0.2.0). Automatic detection of the judge design is restricted to binary treatment in this version; multivalued judge designs should call `iv_testjfe` directly.
 
 ### Bootstrap machinery
 
@@ -90,7 +112,7 @@ T_n \;=\; \sqrt{\tfrac{n_L \, n_H}{n_L + n_H}}
 \label{eq:kitagawa}
 \end{equation}
 
-where `n_L` and `n_H` are the sample sizes in the two instrument cells (so the pair-scale is the harmonic-mean form `sqrt(n_L n_H / (n_L + n_H))`), `Delta F_hat` is the signed interval-probability difference, `sigma_hat` is the plug-in binomial-mixture standard error with mixture weights matching Kitagawa's equation 2.1, and `xi` is a small positive trimming constant that floors the denominator on intervals with vanishing estimated variance. Pairs are pre-ordered so the inequalities are one-sided and the statistic is strictly non-negative. Critical values come from a multiplier bootstrap: Rademacher weights `W_i in {-1, +1}` are applied to the centred indicator process `1{Y_i <= y, D_i = d} - \hat F(y, d | Z_i)` within each Z cell, the bootstrap analogue of `Delta F_hat` is recomputed, and it is studentised with the data-derived plug-in standard error frozen at the observed-sample value. Kitagawa's Algorithm 2.1 (Section 2.2) uses a pair-resampling bootstrap with replacement from the pooled empirical `H_N = \hat\lambda P_m + (1-\hat\lambda) Q_n`; the multiplier variant implemented here is asymptotically equivalent for this class of studentised functionals and is adopted for computational simplicity. The bootstrap p-value is the fraction of replications whose statistic exceeds `T_n`.
+where `n_L` and `n_H` are the sample sizes in the two instrument cells (so the pair-scale is the harmonic-mean form `sqrt(n_L n_H / (n_L + n_H))`), `Delta F_hat` is the signed interval-probability difference, `sigma_hat` is the plug-in binomial-mixture standard error with mixture weights matching Kitagawa's equation 2.1, and `xi` (the `se_floor` argument) is a small positive trimming constant that floors the denominator on intervals with vanishing estimated variance. Pairs are pre-ordered so the inequalities are one-sided and the statistic is strictly non-negative. Critical values come from a multiplier bootstrap: Rademacher weights `W_i in {-1, +1}` are applied to the centred indicator process `1{Y_i <= y, D_i = d} - \hat F(y, d | Z_i)` within each Z cell, the bootstrap analogue of `Delta F_hat` is recomputed, and it is studentised with the data-derived plug-in standard error frozen at the observed-sample value. Kitagawa's Algorithm 2.1 (Section 2.2) uses a pair-resampling bootstrap with replacement from the pooled empirical `H_N = \hat\lambda P_m + (1-\hat\lambda) Q_n`; the multiplier variant implemented here is asymptotically equivalent for this class of studentised functionals and is adopted for computational simplicity. The bootstrap p-value is the fraction of replications whose statistic exceeds `T_n`.
 
 ### Implementation
 
@@ -107,7 +129,7 @@ The bundled `card1995` dataset is a cleaned extract of 3,003 observations from t
 \label{fig:card}
 \end{figure}
 
-## The Mourifie-Wan (2017) test
+## The Mourifié-Wan (2017) test
 
 ### Series regression with adaptive moment selection
 
@@ -115,7 +137,7 @@ For unconditional use without covariates, `iv_mw` delegates to the Kitagawa core
 
 With a covariate vector `x`, `iv_mw` estimates the conditional CDF `F(y, d | X = x, Z = z)` by cubic-polynomial series regression of the indicator `1{Y <= y, D = d}` on a basis of `X`, restricted to observations at each level of `Z`. Standard errors are the heteroscedasticity-consistent sandwich `b(x)' (B'B)^{-1} (B' \text{diag}(r^2) B) (B'B)^{-1} b(x)` where `b(x)` is the basis evaluated at the target `x`. The studentised positive-part statistic is supped over a grid of `(y, x)` quantile points.
 
-Critical values come from a multiplier bootstrap with Andrews-Soares [-@andrews2010] adaptive moment selection. Let `xi_hat_k` denote the observed studentised statistic at index `k`. The bootstrap sup is restricted to the contact set `S = { k : xi_hat_k >= -kappa_n }` where `kappa_n = sqrt(log(log(n)))`. Moments with `xi_hat_k` well below the boundary are treated as strictly non-binding and dropped, giving tighter critical values than the plug-in least-favourable path without compromising size.
+Critical values come from a multiplier bootstrap with Andrews-Soares [-@andrews2010] adaptive moment selection. Let `xi_hat_k` denote the observed studentised statistic at index `k`. The bootstrap sup is restricted to the contact set `S = { k : xi_hat_k >= -kappa_n }` where `kappa_n = sqrt(log(log(n)))`. Moments with `xi_hat_k` well below the boundary are treated as strictly non-binding and dropped, giving tighter critical values than the plug-in least-favourable path without compromising size. The `sqrt(log(log(n)))` rate is deliberately small, on the slow end of the admissible range for this tuning sequence; the conditional-path size simulation below confirms that it controls size at the sample sizes considered.
 
 ### Implementation surface
 
@@ -125,7 +147,7 @@ The user-facing arguments control the grid density (`x_grid_size`, `y_grid_size`
 
 ### Statistic for binary treatment
 
-`iv_testjfe` implements the asymptotic form of the Frandsen-Lefgren-Leslie [-@frandsen2023] test for designs with a binary treatment and an instrument consisting of mutually exclusive dummy variables (the leniency-of-assigned-judge design). Under the joint null, the Wald estimator `(mu_j - mu_k) / (p_j - p_k)` identifies the same complier LATE for every pair of judges `(j, k)`, where `mu_j = E[Y | J = j]` and `p_j = E[D | J = j]`. Under binary treatment, the overidentification test that all pairwise LATEs agree is algebraically the weighted-least-squares test that `mu_j = alpha + beta * p_j` holds, divided by a pooled structural-residual variance estimator:
+`iv_testjfe` implements the asymptotic form of the Frandsen-Lefgren-Leslie [-@frandsen2023] test for designs with a binary treatment and an instrument consisting of `K` mutually exclusive dummy variables (the leniency-of-assigned-judge design). Under the joint null, the Wald estimator `(mu_j - mu_k) / (p_j - p_k)` identifies the same complier LATE for every pair of judges `(j, k)`, where `mu_j = E[Y | J = j]` and `p_j = E[D | J = j]`. Under binary treatment, the overidentification test that all pairwise LATEs agree is algebraically the weighted-least-squares test that `mu_j = alpha + beta * p_j` holds, divided by a pooled structural-residual variance estimator:
 
 \begin{equation}
 T_n \;=\; \frac{\sum_{j} n_j \, \bigl(\mu_j - \hat\alpha - \hat\beta \, p_j\bigr)^2}{\hat\sigma^2}, \qquad \hat\sigma^2 \;=\; \frac{1}{n - K}\sum_j \sum_{i: J_i = j} (y_i - \hat\alpha - \hat\beta d_i - \bar u_j)^2,
@@ -140,7 +162,7 @@ The `method = "bootstrap"` option replaces the chi-squared reference with a mult
 
 Frandsen, Lefgren, and Leslie [-@frandsen2023] state their test for binary `D`. We implement a direct generalisation to discrete `D` with `M + 1` distinct values: the scalar propensity `p_j` becomes the `M`-vector `(P(D = 1 | J), ..., P(D = M | J))`, the fit is the multiple WLS regression of `mu_j` on that vector, and the reference distribution is `chi^2_{K - M - 1}`. The same necessary-condition logic applies (each pair of judges identifies a common LATE vector under the joint null), and the degrees-of-freedom adjustment follows from the number of free parameters in the fit. `iv_testjfe` supports both binary and multivalued treatments; the extension requires no additional user input. We are not aware of a published proof covering the multivalued case for this particular statistic; users treating it as a published result should rely on the binary form.
 
-The Kitagawa (2015) and Mourifie-Wan (2017) tests have an analogous extension to multivalued treatment via Sun [-@sun2023], who generalises the stochastic-dominance inequalities to cumulative-tail events `P(Y <= y, D <= d | Z)` and `P(Y <= y, D >= d | Z)`. `iv_kitagawa` implements this extension transparently: when the treatment vector has more than two distinct values, the test label switches from "Kitagawa (2015)" to "Sun (2023)" and the statistic aggregates violations across `2M` inequality families instead of `2`. Sun's asymptotic validity and bootstrap procedure carry through from the binary case.
+The Kitagawa (2015) and Mourifié-Wan (2017) tests have an analogous extension to multivalued treatment via Sun [-@sun2023], who generalises the stochastic-dominance inequalities to cumulative-tail events `P(Y <= y, D <= d | Z)` and `P(Y <= y, D >= d | Z)`. `iv_kitagawa` implements this extension transparently: when the treatment vector has more than two distinct values, the test label switches from "Kitagawa (2015)" to "Sun (2023)" and the statistic aggregates violations across `2M` inequality families instead of `2`. Sun's asymptotic validity and bootstrap procedure carry through from the binary case.
 
 ### Diagnostic output
 
@@ -148,7 +170,7 @@ The returned object includes the `K x K` matrix `pairwise_late` of pairwise Wald
 
 ## Case study: Card (1995) proximity to a four-year college
 
-The Card [-@card1995] IV estimate of the return to schooling is the canonical applied IV illustration. The unconditional Kitagawa / Mourifie-Wan tests reject the binary discretisation of Card's continuous schooling variable; once a single demographic control is included, the conditional Mourifie-Wan test does not reject. The contrast is the right reading of Card's design: proximity-to-college is a plausible instrument only conditional on demographic and regional controls.
+The Card [-@card1995] IV estimate of the return to schooling is the canonical applied IV illustration. The unconditional Kitagawa / Mourifié-Wan tests reject the binary discretisation of Card's continuous schooling variable; once a single demographic control is included, the conditional Mourifié-Wan test does not reject. The contrast is the right reading of Card's design: proximity-to-college is a plausible instrument only conditional on demographic and regional controls.
 
 ```{r, eval = FALSE}
 library(fixest)
@@ -169,7 +191,7 @@ iv_check(m_cond, n_boot = 200)
 #> Mourifie-Wan (2017): stat = 79.5, p = 0.71, pass
 ```
 
-The wrapper detects that `college` is binary and `near_college` is a binary instrument. In the unconditional specification it runs both Kitagawa and Mourifie-Wan (which coincide without covariates) and reports rejection. In the conditional specification it drops Kitagawa from the applicable list (with an informational message) and runs the conditional Mourifie-Wan test alone; the conditional CLR series-regression form does not reject. The two readings are not in conflict: the unconditional test catches a violation that is removed once age is conditioned on. Card's canonical specification uses additional controls (race, region); multivariate conditioning via tensor-product series basis is on the v0.2.0 roadmap, and the v0.1.2 workaround is dimension reduction to a single propensity index.
+The wrapper detects that `college` is binary and `near_college` is a binary instrument. In the unconditional specification it runs both Kitagawa and Mourifié-Wan (which coincide without covariates) and reports rejection. In the conditional specification it drops Kitagawa from the applicable list (with an informational message) and runs the conditional Mourifié-Wan test alone; the conditional CLR series-regression form does not reject. The two readings are not in conflict: the unconditional test catches a violation that is removed once age is conditioned on. Card's canonical specification uses additional controls (race, region); multivariate conditioning via tensor-product series basis is on the v0.2.0 roadmap, and the v0.1.2 workaround is dimension reduction to a single propensity index.
 
 Users running the test on their own binary-IV designs should inspect the `binding` element of the result to see which outcome interval carries the violation, and consider whether the binary discretisation itself is driving the finding. This is a test of the binary `educ >= 16` threshold, not Card's original continuous-D IV.
 
@@ -200,22 +222,26 @@ skewed Z-cell distributions with weak first stages at sample sizes
 below 1500. Raising the floor to `\xi = 0.15` brings empirical size
 at or below nominal 5\% in 22 of the 24 configurations; the two
 cells that exceed nominal are both at `n = 300` with skewed Z-cell
-balance (35/65), landing at 6.2\% (balanced first stage
+balance (35/65), landing at 7.2\% (balanced first stage
 `P(D=1|Z) = 0.5`) and 6.0\% (card-like
-`P(D=1|Z) \in \{0.3, 0.4\}`) respectively. Both are within
-approximately 1.3 Monte Carlo standard errors of nominal
+`P(D=1|Z) \in \{0.3, 0.4\}`) respectively. These lie approximately
+2.3 and 1.0 Monte Carlo standard errors above nominal
 (`\sqrt{0.05 \times 0.95 / 500} \approx 0.97` percentage points) and
 decay monotonically with sample size: at `n = 800` the same cells
-land at 4.0\% and 1.6\%, at `n = 2000` at 2.6\% and 0.6\%. At the
+land at 4.0\% and 1.8\%, at `n = 2000` at 1.6\% and 0.6\%. At the
 practical sample sizes for Card (1995) and similar designs
 (`n \geq 800`) empirical size is at or below nominal throughout.
 The `se_floor` argument is user-tunable; setting `se_floor = 0.1`
 matches the upper end of Kitagawa's recommended range for users who
 want to stay inside it.
 
+### Size of the conditional Mourifié-Wan test
+
+The conditional series-regression path of `iv_mw` is validated separately, since it is the only component not shared with the Kitagawa core. Under a valid-IV null with a single continuous covariate (the treatment propensity monotone in `Z`, the outcome depending on the treatment and the covariate but not directly on `Z`), the empirical size at nominal 5\% is 4.0\% at `n = 800` and 4.8\% at `n = 2000`, over 500 Monte Carlo replications each (Monte Carlo standard error approximately 0.97 percentage points). The Chernozhukov-Lee-Rosen intersection-bounds inference with Andrews-Soares moment selection at `kappa_n = sqrt(log(log(n)))` therefore controls size on the conditional path at the sample sizes typical of applied work.
+
 ### Power under exclusion violation
 
-Figure \ref{fig:power} shows the empirical rejection rate of `iv_kitagawa` under a D-specific direct effect of `Z` on `Y`, the class of exclusion violation the Kolmogorov-Smirnov test is designed to detect. At `delta = 0` (null) the empirical size is roughly nominal; by `delta = 1.5` in units of `sigma`, power approaches one. Figure \ref{fig:power_jfe} shows the analogous curve for `iv_testjfe` under a sinusoidal direct judge effect, the leading violation mode for the judge-IV design; power reaches one by amplitude `eta = 1.5 sigma`.
+Figure \ref{fig:power} shows the empirical rejection rate of `iv_kitagawa` under a D-specific direct effect of `Z` on `Y`, the class of exclusion violation the Kolmogorov-Smirnov test is designed to detect. At `delta = 0` (null) the empirical size is roughly nominal; by `delta = 1.5` in units of `sigma`, power approaches one. Figure \ref{fig:power_jfe} shows the analogous curve for `iv_testjfe` under a sinusoidal direct judge effect, the leading violation mode for the judge-IV design; the judge-design test is highly powered at these sample sizes, with rejection rising from nominal at `eta = 0` to essentially one by `eta = 0.2` (in units of `sigma`).
 
 \begin{figure}[tbp]
 \centering
@@ -227,7 +253,7 @@ Figure \ref{fig:power} shows the empirical rejection rate of `iv_kitagawa` under
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=0.85\linewidth]{figures/fig-power-testjfe.pdf}
-\caption{\textbf{Empirical power of \texttt{iv\_testjfe} under a sinusoidal judge-effect exclusion violation, K = 20 judges and N = 3000.} Horizontal dashed line shows the nominal 5\% level. The simulator generates data with $Y = D + \eta \sigma \sin(0.5 J) + \varepsilon$, a direct effect of judge identity on $Y$ holding $D$ fixed. Power rises monotonically in the violation amplitude $\eta$ and approaches one by $\eta = 1.5\sigma$, with 200 Monte Carlo replications per grid point; the asymptotic-chi-squared p-value is used throughout.}
+\caption{\textbf{Empirical power of \texttt{iv\_testjfe} under a sinusoidal judge-effect exclusion violation, K = 20 judges and N = 3000.} Horizontal dashed line shows the nominal 5\% level. The simulator generates data with $Y = D + \eta \sigma \sin(0.5 J) + \varepsilon$, a direct effect of judge identity on $Y$ holding $D$ fixed. Power rises steeply in the violation amplitude $\eta$ and reaches essentially one by $\eta = 0.2\sigma$, with 200 Monte Carlo replications per grid point; the asymptotic chi-squared p-value is used throughout. The test is highly powered against this violation mode at $K = 20$, $N = 3000$.}
 \label{fig:power_jfe}
 \end{figure}
 
@@ -255,14 +281,14 @@ Figure \ref{fig:pairwise} shows the pairwise Wald LATE matrix for the violation 
 
 ## Limitations
 
-Eight limitations apply.
+The following limitations apply.
 
 1. \CRANpkg{ivcheck} is a testing package, not an estimator. Use \CRANpkg{fixest} or \CRANpkg{ivreg} for the IV estimation itself; \CRANpkg{ivcheck} operates on the fitted model or on raw vectors.
 2. The current version supports discrete instruments only. Continuous `Z` must be discretised into bins (quartiles or quintiles) before passing to `iv_kitagawa` or `iv_mw`, at modest cost in power. A nonparametric continuous-`Z` extension is on the v0.2.0 roadmap.
 3. Fuzzy regression discontinuity has a dedicated test [@arai2022] that is not yet in \CRANpkg{ivcheck}. Its different infrastructure (running variable, cutoff, local-polynomial bandwidth, bias correction) does not fit the current spine of S3 dispatch on fitted IV models, so a dedicated `iv_frd()` function is deferred to v0.2.0.
 4. `iv_testjfe` implements the asymptotic chi-squared linearity test that corresponds to the @frandsen2023 statistic under a linear outcome-propensity specification. The full flexible-series test with the bounded-slope moment-inequality restriction is planned for v0.2.0. Users needing the published test with the flexible basis should run Frandsen's Stata `testjfe` module in the interim.
 5. Fixed-effects IV models are not yet supported. Calling `iv_kitagawa`, `iv_mw`, or `iv_testjfe` on a `fixest` model with the `| FE |` component aborts with a clear error. The discrete-Z tests operate on the raw `(Y, D, Z)` joint distribution, and residualising on fixed effects destroys the discrete structure of `Z`. For judge-style FE designs the right tool is `iv_testjfe` directly (the FE *are* the instrument variation); for non-judge FE the documented workaround is to pre-demean `Y` and `D` within each FE cell, keep `Z` discrete, and call the default method on the resulting vectors.
-6. `iv_kitagawa` is strictly the unconditional Kitagawa (2015) test. Dispatched on a fitted `fixest` or `ivreg` model that carries exogenous controls, it errors with a pointer to `iv_mw` for the conditional Mourifie-Wan (2017) test, rather than silently dropping the controls. Users wanting the unconditional test on data that happen to come from a controlled regression should call `iv_kitagawa` on raw `(y, d, z)` vectors.
+6. `iv_kitagawa` is strictly the unconditional Kitagawa (2015) test. Dispatched on a fitted `fixest` or `ivreg` model that carries exogenous controls, it errors with a pointer to `iv_mw` for the conditional Mourifié-Wan (2017) test, rather than silently dropping the controls. (Through the `iv_check` wrapper the same condition instead causes Kitagawa to be dropped from the applicable list with an informational message, rather than an error.) Users wanting the unconditional test on data that happen to come from a controlled regression should call `iv_kitagawa` on raw `(y, d, z)` vectors.
 7. The conditional path of `iv_mw` supports a single covariate. Users passing a matrix of multiple covariates receive a clear error pointing to the tensor-product-basis extension planned for v0.2.0. The current recommendation is to condition on the covariate most plausibly driving heterogeneity in compliance, or to reduce a multivariate `X` to a single propensity index.
 8. Rejection of any of the three tests is evidence of violation but does not localise the failed assumption. Non-rejection is evidence of no detectable violation at level `alpha`, not proof of validity. Report non-rejection as such.
 
@@ -272,12 +298,12 @@ For transparency, the ordered multivalued `D` path in `iv_kitagawa` tests a rich
 
 `iv_testjfe` implements the linearity-test form of the @frandsen2023 overidentification test: we fit `mu_j` against `p_j` by WLS and compare the weighted residual SS to a `chi^2_{K-2}` reference. FLL's published test uses a flexible basis plus bounded-slope moment-inequality constraints on the LATE; our v0.1.0 form is a simpler necessary-condition check. Users wanting the exact published test should run Frandsen's Stata `testjfe` module; a flexible-basis extension and CLR-style bounded-slope inference are planned for v0.2.0.
 
-The `iv_mw` CLR path is an independent implementation of the @chernozhukov2013 intersection-bounds framework (series-regression conditional CDF, robust plug-in SE, @andrews2010 adaptive moment selection) rather than a port of Mourifie-Wan's Matlab code. Cross-validation against the authors' code is on the v0.2.0 wishlist. The bootstrap multiplier defaults to Rademacher but `multiplier = "gaussian"` and `multiplier = "mammen"` are available for robustness checks.
+The `iv_mw` CLR path is an independent implementation of the @chernozhukov2013 intersection-bounds framework (series-regression conditional CDF, robust plug-in SE, @andrews2010 adaptive moment selection) rather than a port of Mourifié-Wan's Matlab code. Cross-validation against the authors' code is on the v0.2.0 wishlist. The bootstrap multiplier defaults to Rademacher but `multiplier = "gaussian"` and `multiplier = "mammen"` are available for robustness checks.
 
 ## Conclusion
 
-\CRANpkg{ivcheck} closes a tooling gap between the econometric literature on LATE falsification and applied IV practice. The package is available on CRAN; source and issue tracker at \url{https://github.com/charlescoverdale/ivcheck}.
+\CRANpkg{ivcheck} closes the tooling gap between the econometric literature on LATE falsification and applied IV practice: three published falsification tests, each a single function call on a fitted \CRANpkg{fixest} or \CRANpkg{ivreg} model, with a wrapper that selects the applicable tests automatically. Monte Carlo validation shows empirical size at or below nominal across the tested designs, and power approaching one by a direct-effect violation of roughly $1.5\sigma$ for the Kitagawa test. Planned extensions for v0.2.0 include nonparametric continuous-instrument inference, multivariate conditioning via a tensor-product series basis, the full flexible-basis Frandsen-Lefgren-Leslie test with bounded-slope inference, and a fuzzy regression-discontinuity test (`iv_frd()`) following @arai2022. The package is available on CRAN; source and issue tracker at \url{https://github.com/charlescoverdale/ivcheck}.
 
 ## Acknowledgements {-}
 
-I thank Toru Kitagawa, Ismael Mourifie, Yuanyuan Wan, Brigham Frandsen, Lars Lefgren, and Emily Leslie for their methodological contributions and the publicly-available replication archives that made this port possible. The Card (1995) dataset is distributed via the \CRANpkg{wooldridge} package [@wooldridge2020] on CRAN, sourced from the National Longitudinal Survey of Young Men.
+I thank Toru Kitagawa, Ismael Mourifié, Yuanyuan Wan, Brigham Frandsen, Lars Lefgren, and Emily Leslie for their methodological contributions and the publicly-available replication archives that made this port possible. The Card (1995) dataset is distributed via the \CRANpkg{wooldridge} package [@wooldridge2020] on CRAN, sourced from the National Longitudinal Survey of Young Men.

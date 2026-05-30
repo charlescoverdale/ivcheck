@@ -135,8 +135,8 @@ the test as estimated regressors. At modest per-judge sample sizes
 \verb{hat p_j} compresses the distribution of the test statistic below
 the asymptotic chi-squared reference, producing a test that is
 mildly conservative at nominal 5 percent. Empirical size at
-\code{K = 20}, \code{N = 3000} is 1.5 percent under the asymptotic method
-and 2.5 percent under the bootstrap. Both methods sharpen toward
+\code{K = 20}, \code{N = 3000} is 3.9 percent under the asymptotic method
+and 4.3 percent under the bootstrap. Both methods sharpen toward
 nominal as \code{n_j} grows. The bootstrap is recommended for
 publication-grade p-values at modest \code{n_j}.
 

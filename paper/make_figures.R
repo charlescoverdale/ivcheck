@@ -1,11 +1,12 @@
 # Figure generator for the ivcheck R Journal paper.
 #
-# Builds five figures into paper/figures/:
+# Builds six figures into paper/figures/:
 #   fig-card-bootstrap.pdf   Kitagawa bootstrap distribution on Card 1995
 #   fig-power-curve.pdf      Kitagawa power curve under increasing violation
 #   fig-testjfe-null.pdf     Monte Carlo null vs chi^2 for iv_testjfe
 #   fig-judges-scatter.pdf   mu_j vs p_j (valid vs violation)
 #   fig-pairwise-late.pdf    Pairwise LATE heatmap for judge-IV violation
+#   fig-power-testjfe.pdf    iv_testjfe power curve under sinusoidal judge effect
 #
 # Run from the package root after devtools::load_all(".") or with the
 # installed version on the library path.
@@ -16,12 +17,19 @@ suppressPackageStartupMessages({
   library(showtext)
 })
 
-font_add("HelveticaNeue",
-         regular = "/System/Library/Fonts/Helvetica.ttc",
-         bold    = "/System/Library/Fonts/Helvetica.ttc",
-         italic  = "/System/Library/Fonts/Helvetica.ttc")
-showtext_auto()
-showtext_opts(dpi = 300)
+# Register Helvetica for chart text when the macOS font is present;
+# otherwise fall back to the platform default so the script runs on
+# Linux and Windows (e.g. a referee's machine or the journal build).
+.helvetica <- "/System/Library/Fonts/Helvetica.ttc"
+.use_helvetica <- file.exists(.helvetica)
+if (.use_helvetica) {
+  font_add("HelveticaNeue",
+           regular = .helvetica,
+           bold    = .helvetica,
+           italic  = .helvetica)
+  showtext_auto()
+  showtext_opts(dpi = 300)
+}
 
 fig_dir <- "paper/figures"
 if (!dir.exists(fig_dir)) dir.create(fig_dir, recursive = TRUE)
@@ -33,7 +41,7 @@ ok_red    <- "#D55E00"
 ok_purple <- "#CC79A7"
 ok_sky    <- "#56B4E9"
 
-fam <- "HelveticaNeue"
+fam <- if (.use_helvetica) "HelveticaNeue" else "sans"
 
 theme_wp <- function(base_size = 10) {
   theme_bw(base_size = base_size, base_family = fam) +
@@ -102,7 +110,8 @@ p_boot <- ggplot(df_boot, aes(x = stat)) +
            y = 80,
            label = sprintf("observed T = %.2f\np = %.2f",
                            k_card$statistic, k_card$p_value),
-           hjust = -0.1, size = 3.2, family = fam, colour = ok_red) +
+           hjust = -0.08, size = 3.2, family = fam, colour = ok_red) +
+  scale_x_continuous(expand = expansion(mult = c(0.04, 0.34))) +
   labs(x = "Bootstrap statistic", y = "Frequency") +
   theme_wp()
 
@@ -271,7 +280,7 @@ set.seed(6)
 K <- 20
 n_sim <- 3000
 nreps_power_jfe <- 200
-eta_grid <- c(0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5)
+eta_grid <- c(0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30)
 power_jfe <- numeric(length(eta_grid))
 for (i in seq_along(eta_grid)) {
   rejections <- 0

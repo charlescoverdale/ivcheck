@@ -1,8 +1,12 @@
 # Replication script for the ivcheck R Journal paper.
 #
-# Running this script end-to-end regenerates every figure and every
-# numerical claim in paper/rj/paper.Rmd. Runtime: approximately 30 to
-# 45 minutes on a 4-core laptop.
+# This script re-runs reduced-replication sanity checks of the paper's
+# numerical claims (fast), then regenerates all six figures via
+# paper/make_figures.R. The paper's exact quoted numbers come from
+# make_figures.R at full replication counts and are cached in
+# paper/null_stats.rds and paper/power_stats.rds; the checks below use
+# fewer replications, so their printed values differ from the
+# manuscript (they confirm direction and magnitude only).
 #
 # Required:
 #   * ivcheck >= 0.1.0 (load via devtools::load_all(".") from package root)
@@ -13,8 +17,8 @@
 #   Rscript paper/replicate.R
 #
 # Outputs:
-#   paper/figures/*.pdf             — all 5 figures
-#   paper/replicate_claims.txt      — tabulated numerical claims
+#   paper/figures/*.pdf             all six figures (via make_figures.R)
+#   paper/replicate_claims.txt      tabulated numerical claims
 
 suppressPackageStartupMessages({
   library(ivcheck)
@@ -27,10 +31,11 @@ sink("paper/replicate_claims.txt", split = TRUE)
 
 # =========================================================================
 # Claim 1. iv_testjfe null distribution matches chi^2_{K-2} to MC precision.
-# Paper claim (Why trust this implementation section):
-#   "At K=20, N=3000 over 200 replications: empirical mean 18.01 vs target
-#    18.0, variance 35.1 vs target 36.0, 95th percentile 29.4 vs target 28.9,
-#    empirical size 6.5% vs nominal 5%."
+# The manuscript reports (make_figures.R, 1000 replications, cached in
+# null_stats.rds): empirical mean 17.67 vs target 18.0, variance 33.44 vs
+# target 36.0, 95th percentile 28.28 vs 28.869, size 3.9% (asymptotic) and
+# 4.3% (bootstrap) vs nominal 5%. The reduced 200-rep check below
+# reproduces the chi-squared shape with noisier moments.
 # =========================================================================
 cat("===== Claim 1: iv_testjfe null distribution vs chi^2_{K-2} =====\n")
 K <- 20
@@ -59,10 +64,11 @@ cat(sprintf("Empirical size: %.3f    (nominal: 0.050)\n", rej / n_reps))
 
 # =========================================================================
 # Claim 2. iv_kitagawa MC size across 24 configurations at se_floor = 0.15.
-# Paper claim (Null size under finite samples and skewed Z):
-#   "All skewed-Z configurations with strong first stages also deliver 0%
-#    rejection. Skewed-Z configurations with weak first stages are at or
-#    below nominal 5% once se_floor = 0.15."
+# The manuscript's exact size numbers (500 reps/cell) and the conditional
+# iv_mw size are produced by paper/make_size_study.R and cached in
+# paper/size_stats.rds and paper/mw_size_stats.rds. The fast 100-rep check
+# below confirms the same qualitative pattern (size <= nominal except at the
+# smallest n with skewed Z) in a fraction of the runtime.
 # =========================================================================
 cat("\n===== Claim 2: iv_kitagawa MC size across 24 configurations =====\n")
 cfg <- expand.grid(
@@ -72,7 +78,7 @@ cfg <- expand.grid(
   stringsAsFactors = FALSE
 )
 cfg$size <- NA_real_
-n_reps_size <- 100  # smaller for runtime; paper uses 200
+n_reps_size <- 100  # smaller for runtime; the manuscript uses 500 per cell
 alpha <- 0.05
 for (i in seq_len(nrow(cfg))) {
   p_low  <- switch(cfg$first_stage[i],
@@ -165,7 +171,7 @@ cat("--- end session info ---\n")
 sink()
 
 # =========================================================================
-# Regenerate the 5 figures referenced in the paper.
+# Regenerate the six figures referenced in the paper.
 # =========================================================================
 cat("\nRegenerating figures via paper/make_figures.R ...\n")
 source("paper/make_figures.R")
