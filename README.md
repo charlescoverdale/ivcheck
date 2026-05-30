@@ -10,6 +10,8 @@
 
 ## Introduction
 
+A technical working paper for this package can be found [here](https://charlescoverdale.github.io/files/coverdale_ivcheck_2026.pdf).
+
 `ivcheck` is an R package that tests the identifying assumptions behind instrumental variable (IV) estimation. It provides three published falsification tests as named R functions, with S3 methods for fitted `fixest` and `ivreg` models plus a one-shot wrapper that runs every applicable test in a single call.
 
 Every applied IV paper rests on two assumptions about the instrument `Z`: the exclusion restriction (`Z` affects the outcome `Y` only through the endogenous treatment `D`) and monotonicity (no defiers). Under these assumptions plus independence, the IV estimand identifies the local average treatment effect (LATE) for compliers (Imbens and Angrist 1994). Both assumptions are untestable-looking in principle, but the methodological literature has derived testable implications on the joint distribution of `(Y, D, Z)`: Kitagawa (2015), Mourifie-Wan (2017), Frandsen-Lefgren-Leslie (2023). Rejection of these tests is evidence that at least one of exclusion or monotonicity has failed. Non-rejection is evidence of no detectable violation at the chosen level.
