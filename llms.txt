@@ -2,6 +2,9 @@
 
 ## Introduction
 
+A technical working paper for this package can be found
+[here](https://charlescoverdale.github.io/files/coverdale_ivcheck_2026.pdf).
+
 `ivcheck` is an R package that tests the identifying assumptions behind
 instrumental variable (IV) estimation. It provides three published
 falsification tests as named R functions, with S3 methods for fitted
