@@ -2,6 +2,8 @@
 
 ## ivcheck 0.1.2
 
+CRAN release: 2026-05-30
+
 ### Bug fix (behaviour change)
 
 - [`iv_kitagawa()`](https://charlescoverdale.github.io/ivcheck/reference/iv_kitagawa.md)
