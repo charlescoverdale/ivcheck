@@ -11,3 +11,6 @@
 ^\.DS_Store$
 ^DEEP_REVIEW\.md$
 ^CRAN-SUBMISSION$
+^_pkgdown\.yml$
+^llms\.txt$
+^llms-full\.txt$

@@ -1,5 +1,15 @@
 # CRAN submission comments - ivcheck 0.1.2
 
+## Resubmission
+
+This is a resubmission. The 2026-05-30 pre-test flagged one NOTE:
+
+    Non-standard files/directories found at top level:
+      '_pkgdown.yml' 'llms-full.txt' 'llms.txt'
+
+These three files are now listed in `.Rbuildignore` so they are no
+longer shipped in the package tarball. No other changes.
+
 ## Summary
 
 This is a bug-fix release. `iv_kitagawa()` dispatched on a fitted
@@ -20,18 +30,13 @@ unconditional test by passing raw `(y, d, z)` vectors to
 ## R CMD check results
 
 Local `R CMD check --as-cran` (R 4.5.0 on macOS, Darwin 25.4.0):
-0 errors, 0 warnings, 2 NOTEs.
+0 errors, 0 warnings, 1 NOTE.
 
-The two NOTEs are environmental and do not reproduce on CRAN
+The single NOTE is environmental and does not reproduce on CRAN
 infrastructure:
 
 1. "unable to verify current time": clock-skew note on the author's
    machine.
-2. "Non-standard files/directories found at top level":
-   `_pkgdown.yml` (pkgdown site config), `llms.txt` and
-   `llms-full.txt` (LLM-readable package summaries). These files
-   shipped in v0.1.0 and v0.1.1 without comment from previous CRAN
-   reviewers.
 
 ## Test suite
 
