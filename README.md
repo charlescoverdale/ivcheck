@@ -201,6 +201,7 @@ Read before using in published work.
 | [`ivreg`](https://cran.r-project.org/package=ivreg) | 2SLS with Wu-Hausman, Sargan, weak-IV F (upstream from `ivcheck`) |
 | [`ivmodel`](https://cran.r-project.org/package=ivmodel) | k-class estimators, weak-IV robust CIs, sensitivity analysis |
 | [`ivDiag`](https://cran.r-project.org/package=ivDiag) | Effective F, Anderson-Rubin, valid-t, local-to-zero tests |
+| [`magentabook`](https://github.com/charlescoverdale/magentabook) | HM Treasury Magenta Book evaluation primitives (impact evaluation design and reporting) |
 
 `ivcheck` complements rather than competes with these. `fixest` or `ivreg` does the estimation, `ivDiag` does weak-IV post-estimation diagnostics, and `ivcheck` does LATE-assumption falsification.
 
