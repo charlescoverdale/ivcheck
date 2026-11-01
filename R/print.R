@@ -9,8 +9,8 @@ print.iv_test <- function(x, digits = 3L, ...) {
   cli::cli_h1(x$test)
   cli::cli_text("Sample size: {.val {x$n}}")
   cli::cli_text(
-    "Statistic: {.val {format(x$statistic, digits = digits)}}, ",
-    "p-value: {.val {format(x$p_value, digits = digits)}}"
+    "Statistic: {format(x$statistic, digits = digits)}, ",
+    "p-value: {format(x$p_value, digits = digits)}"
   )
   verdict <- if (is.na(x$p_value)) {
     "not yet implemented (v0.1.0 stub)"
