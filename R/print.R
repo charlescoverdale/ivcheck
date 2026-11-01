@@ -70,8 +70,8 @@ print.iv_check <- function(x, digits = 3L, ...) {
   for (i in seq_len(nrow(tab))) {
     cli::cli_text(
       "  {.strong {tab$test[i]}}: ",
-      "stat = {.val {format(tab$statistic[i], digits = digits)}}, ",
-      "p = {.val {format(tab$p_value[i], digits = digits)}}, ",
+      "stat = {format(tab$statistic[i], digits = digits)}, ",
+      "p = {format(tab$p_value[i], digits = digits)}, ",
       "{tab$verdict[i]}"
     )
   }
