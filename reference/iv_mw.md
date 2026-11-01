@@ -223,7 +223,7 @@ iv_mw(y, d, z, n_boot = 200, parallel = FALSE)
 #> 
 #> ── Mourifie-Wan (2017) ─────────────────────────────────────────────────────────
 #> Sample size: 500
-#> Statistic: "0.916", p-value: "1"
+#> Statistic: 0.916, p-value: 1
 #> Verdict: cannot reject IV validity at 0.05
 # }
 ```

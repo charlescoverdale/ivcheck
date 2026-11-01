@@ -83,8 +83,8 @@ chk <- iv_check(m_uncond, n_boot = 500, parallel = FALSE)
 print(chk)
 #> 
 #> ── IV validity diagnostic ──────────────────────────────────────────────────────
-#> Kitagawa (2015): stat = "5.25", p = "0", reject
-#> Mourifie-Wan (2017): stat = "5.25", p = "0", reject
+#> Kitagawa (2015): stat = 5.25, p = 0, reject
+#> Mourifie-Wan (2017): stat = 5.25, p = 0, reject
 #> Overall: at least one test rejects IV validity at 0.05.
 ```
 
@@ -157,7 +157,7 @@ print(mw)
 #> 
 #> ── Mourifie-Wan (2017) ─────────────────────────────────────────────────────────
 #> Sample size: 3003
-#> Statistic: "79.5", p-value: "0.675"
+#> Statistic: 79.5, p-value: 0.675
 #> Verdict: cannot reject IV validity at 0.05
 ```
 
@@ -176,7 +176,7 @@ iv_check(m_cond, n_boot = 200, parallel = FALSE)
 #> 
 #> ── IV validity diagnostic ──────────────────────────────────────────────────────
 #> 
-#> Mourifie-Wan (2017): stat = "79.5", p = "0.695", pass
+#> Mourifie-Wan (2017): stat = 79.5, p = 0.695, pass
 #> 
 #> Overall: cannot reject IV validity at 0.05.
 ```

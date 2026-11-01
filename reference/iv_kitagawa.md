@@ -254,7 +254,7 @@ iv_kitagawa(y, d, z, n_boot = 200, parallel = FALSE)
 #> 
 #> ── Kitagawa (2015) ─────────────────────────────────────────────────────────────
 #> Sample size: 500
-#> Statistic: "0.916", p-value: "1"
+#> Statistic: 0.916, p-value: 1
 #> Verdict: cannot reject IV validity at 0.05
 # }
 ```

@@ -226,7 +226,7 @@ iv_testjfe(y, d, judge, n_boot = 200, parallel = FALSE)
 #> 
 #> ── Frandsen-Lefgren-Leslie (2023) ──────────────────────────────────────────────
 #> Sample size: 2000
-#> Statistic: "27.2", p-value: "0.0751"
+#> Statistic: 27.2, p-value: 0.0751
 #> Verdict: cannot reject IV validity at 0.05
 # }
 ```

@@ -1,5 +1,12 @@
 # Changelog
 
+## ivcheck (development version)
+
+- [`print.iv_check()`](https://charlescoverdale.github.io/ivcheck/reference/print.iv_check.md)
+  showed each statistic and p-value as a quoted string
+  (`stat = "5.25", p = "0"`), because they were formatted to text and
+  then styled as values. They print as plain numbers again.
+
 ## ivcheck 0.1.2
 
 CRAN release: 2026-05-30

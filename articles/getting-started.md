@@ -43,7 +43,7 @@ print(result)
 #> 
 #> ── Kitagawa (2015) ─────────────────────────────────────────────────────────────
 #> Sample size: 500
-#> Statistic: "0.916", p-value: "1"
+#> Statistic: 0.916, p-value: 1
 #> Verdict: cannot reject IV validity at 0.05
 ```
 
@@ -120,7 +120,7 @@ print(result_v)
 #> 
 #> ── Kitagawa (2015) ─────────────────────────────────────────────────────────────
 #> Sample size: 1500
-#> Statistic: "10.7", p-value: "0"
+#> Statistic: 10.7, p-value: 0
 #> Verdict: reject IV validity at 0.05
 ```
 
@@ -171,7 +171,7 @@ print(result_mw)
 #> 
 #> ── Mourifie-Wan (2017) ─────────────────────────────────────────────────────────
 #> Sample size: 800
-#> Statistic: "29.3", p-value: "0.883"
+#> Statistic: 29.3, p-value: 0.883
 #> Verdict: cannot reject IV validity at 0.05
 ```
 
@@ -206,8 +206,8 @@ check <- structure(list(
 print(check)
 #> 
 #> ── IV validity diagnostic ──────────────────────────────────────────────────────
-#> Kitagawa (2015): stat = "0.3", p = "0.82", pass
-#> Mourifie-Wan (2017): stat = "0.35", p = "0.78", pass
+#> Kitagawa (2015): stat = 0.3, p = 0.82, pass
+#> Mourifie-Wan (2017): stat = 0.35, p = 0.78, pass
 #> Overall: cannot reject IV validity at 0.05.
 ```
 

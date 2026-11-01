@@ -88,9 +88,9 @@ library(ivcheck)
 data(card1995)
 m <- feols(lwage ~ 1 | college ~ near_college, data = card1995)
 iv_check(m, n_boot = 500)
-#> IV validity diagnostic
-#>   Kitagawa (2015):     stat = 5.25, p = 0.00, reject
-#>   Mourifie-Wan (2017): stat = 5.25, p = 0.00, reject
+#> -- IV validity diagnostic ------------------------------------------------------
+#> Kitagawa (2015): stat = 5.25, p = 0, reject
+#> Mourifie-Wan (2017): stat = 5.25, p = 0, reject
 #> Overall: at least one test rejects IV validity at 0.05.
 ```
 
@@ -222,20 +222,20 @@ data(card1995)   # bundled
 # Unconditional: Kitagawa and Mourifie-Wan both reject.
 m_uncond <- feols(lwage ~ 1 | college ~ near_college, data = card1995)
 iv_check(m_uncond, n_boot = 500)
-#> IV validity diagnostic
-#>   Kitagawa (2015):     stat = 5.25, p = 0.00, reject
-#>   Mourifie-Wan (2017): stat = 5.25, p = 0.00, reject
+#> -- IV validity diagnostic ------------------------------------------------------
+#> Kitagawa (2015): stat = 5.25, p = 0, reject
+#> Mourifie-Wan (2017): stat = 5.25, p = 0, reject
 #> Overall: at least one test rejects IV validity at 0.05.
 
 # Conditional on age: the conditional Mourifie-Wan test does not reject.
 m_cond <- feols(lwage ~ age | college ~ near_college, data = card1995)
 iv_check(m_cond, n_boot = 200)
 #> i Kitagawa test skipped: fitted model has exogenous controls and
-#>   iv_kitagawa() is unconditional.
+#>   `iv_kitagawa()` is unconditional.
 #> i The conditional Mourifie-Wan test is the right object here.
 #>
-#> IV validity diagnostic
-#>   Mourifie-Wan (2017): stat = 79.5, p = 0.71, pass
+#> -- IV validity diagnostic ------------------------------------------------------
+#> Mourifie-Wan (2017): stat = 79.5, p = 0.705, pass
 #> Overall: cannot reject IV validity at 0.05.
 ```
 
@@ -344,6 +344,7 @@ Read before using in published work.
 | [`ivreg`](https://cran.r-project.org/package=ivreg) | 2SLS with Wu-Hausman, Sargan, weak-IV F (upstream from `ivcheck`) |
 | [`ivmodel`](https://cran.r-project.org/package=ivmodel) | k-class estimators, weak-IV robust CIs, sensitivity analysis |
 | [`ivDiag`](https://cran.r-project.org/package=ivDiag) | Effective F, Anderson-Rubin, valid-t, local-to-zero tests |
+| [`magentabook`](https://github.com/charlescoverdale/magentabook) | HM Treasury Magenta Book evaluation primitives (impact evaluation design and reporting) |
 
 `ivcheck` complements rather than competes with these. `fixest` or
 `ivreg` does the estimation, `ivDiag` does weak-IV post-estimation

@@ -50,7 +50,7 @@ print(r_valid)
 #> 
 #> ── Frandsen-Lefgren-Leslie (2023) ──────────────────────────────────────────────
 #> Sample size: 3000
-#> Statistic: "29.1", p-value: "0.047"
+#> Statistic: 29.1, p-value: 0.047
 #> Verdict: reject IV validity at 0.05
 ```
 
@@ -73,7 +73,7 @@ print(r_viol)
 #> 
 #> ── Frandsen-Lefgren-Leslie (2023) ──────────────────────────────────────────────
 #> Sample size: 3000
-#> Statistic: "2165", p-value: "0"
+#> Statistic: 2165, p-value: 0
 #> Verdict: reject IV validity at 0.05
 ```
 
@@ -182,7 +182,7 @@ print(r_x)
 #> 
 #> ── Frandsen-Lefgren-Leslie (2023) ──────────────────────────────────────────────
 #> Sample size: 2000
-#> Statistic: "19.5", p-value: "0.108"
+#> Statistic: 19.5, p-value: 0.108
 #> Verdict: cannot reject IV validity at 0.05
 ```
 
